@@ -1,6 +1,7 @@
 
 from collections import defaultdict
 import helper
+import dawg
 
 N = 3 # the 'n' of the n-gram
 MIN_PROB = 1e-6
@@ -26,19 +27,19 @@ def createNgrams(fname='', listw=[], n=3, outfname=''):
     assert n>0, "The 'n' of ngrams must be greater than 0"
     
     if fname:
-        pws = helper.open_get_file(fname)
+        pws = helper.open_get_line(fname)
     def join_iterators(pws, listw):
         for p in pws: yield p
         for p in listw: yield p
     big_dict = defaultdict(int)
     for pw, c in join_iterators(pws, listw):
-        for ng in ngramsofw(word, n):
+        for ng in ngramsofw(pw, n):
             big_dict[unicode(ng)] += c
     big_dict['__TOTAL__'] = sum(big_dict.values())
     nDawg= dawg.IntCompletionDAWG(big_dict)
     if not outfname:
         outfname = 'ngrams.dawg'
-    T.save(outfname)
+    nDawg.save(outfname)
     return nDawg
 
 def readNgrams(fname):
@@ -51,3 +52,8 @@ def prob(w, nDawg):
     return helper.prod(nDawg.get(ng, MIN_PROB)/t
                        for ng in ngramsofw(w))
     
+if __name__ == "__main__":
+    import sys
+    T = createNgrams(fname=sys.argv[1], n=3)
+    w = 'password12'
+    print "Probability of {}: {}".format(w, prob(w, T))
