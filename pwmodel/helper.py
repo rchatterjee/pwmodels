@@ -235,6 +235,7 @@ def open_get_line(filename, limit=-1, **kwargs):
         for w,c in get_line(f, limit, **kwargs):
             yield w, c
 
+# TODO - Optimize the tokenization process
 regex = r'([A-Za-z_]+)|([0-9]+)|(\W+)'
 def print_err( *args ):
     if DEBUG:
