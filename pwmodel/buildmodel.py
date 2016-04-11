@@ -13,11 +13,11 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
     takes a string and returns a list of strings
 
     """
-    
+    pws = []
     if fname:
         pws = helper.open_get_line(fname)
-    def join_iterators(pws, listw):
-        for p in pws: yield p
+    def join_iterators(_pws, listw):
+        for p in _pws: yield p
         for p in listw: yield p
     big_dict = defaultdict(int)
     for pw, c in join_iterators(pws, listw):
@@ -26,7 +26,7 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
     big_dict['__TOTAL__'] = sum(big_dict.values())
     nDawg= dawg.IntCompletionDAWG(big_dict)
     if not outfname:
-        outfname = 'model.dawg'
+        outfname = 'tmpmodel.dawg'
     nDawg.save(outfname)
     return nDawg
 
