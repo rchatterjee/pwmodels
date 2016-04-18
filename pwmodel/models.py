@@ -3,16 +3,6 @@ import helper
 
 N = 3 # the 'n' of the n-gram
 
-def ngramsofw(word, n=3):
-    """Returns the @n-grams of a word @w
-    """
-    assert n>0, "The 'n' of ngrams must be greater than 0"
-    word = helper.TART + word + helper.END
-    if len(word)<=n:
-        return [word]
-        
-    return [word[i:i+n]
-            for i in xrange(0, len(word)-n+1)]
 
 
 def pcfgtokensofw(word):

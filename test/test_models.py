@@ -6,9 +6,10 @@ leak_file = os.path.expanduser('~/passwords/phpbb-withcount.txt.bz2')
 class TestNgramPw(object):
     def test_ngrampw(self):
         ngpw = pwm.NGramPw(n=4, pwfilename=leak_file)
-        pw = 'assword12'
-        print "prob of {} -- {}".format(pw, ngpw.prob(pw))
-        assert False
+        for (pw1, pw2) in [('password12', 'assword12'),
+                           ('1234567', '123456789'),
+                           ('password', 'pasword')]:
+            assert ngpw.prob(pw1)>ngpw.prob(pw2)
 
 
 

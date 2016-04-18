@@ -45,16 +45,6 @@ def read_dawg(fname):
     return nDawg
 
 def create_ngram_model(fname='', listw=[], outfname='', n=3):
-    """Create a list of ngrams from a file @fname.  NOTE: the file must be
-    in password file format.  See smaple/pw.txt file for the format.
-    If the file is empty string, then it will try to read the
-    passwords from the @listw which is a list of tuples [(w1, f1),
-    (w2, f2)...]. (It can be an iterator.)  @n is again the 'n' of
-    n-gram Writes the ngrams in a file at @outfname. if outfname is
-    empty string, it will print the ngrams on a file named
-    'ngrams.dawg'
-
-    """
 
     return create_model(fname=fame, listw=listw, outfname=outfname,
                         modelfunc=lambda w: models.ngramsofw(w, n=3))
