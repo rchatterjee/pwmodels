@@ -6,16 +6,16 @@ class TestNgram(object):
         with pytest.raises(AssertionError):
             pwm.models.ngramsofw('asdfa', -1)
             
-    @pytest.mark.parametrize('word', ['asdfa', 'a'])
+    @pytest.mark.parametrize('word', ['asd', 'a'])
     def test_small_word(self, word):
-        assert pwm.models.ngramsofw(word, n=6) == [word]
+        assert pwm.models.ngramsofw(word, n=6) == ['\x01' + word + '\x02']
 
     @pytest.mark.parametrize(('word', 'n'), [('password', 1),
                                              ('aaaaaaaaaa', 5)
     ])
     def test_length_all_ngrams(self, word, n):
         assert all([len(x)==n for x in pwm.models.ngramsofw(word, n)])
-        assert len(pwm.models.ngramsofw(word, n)) == max(1, len(word)-n+1)
+        assert len(pwm.models.ngramsofw(word, n)) == max(1, len(word)-n+3)
 
     @pytest.mark.parametrize(('word', 'n'), [('password', 1),
                                              ('asdflaksdjfa;sdf', 5),
@@ -28,7 +28,7 @@ class TestNgram(object):
                 ret = w
             else:
                 ret += w[-1]
-        assert ret == word
+        assert ret[1:-1] == word
 
 class TestPCFG(object):
     @pytest.mark.parametrize(('word', 'res'), [('password', ['password']),
@@ -40,10 +40,3 @@ class TestPCFG(object):
         assert pwm.models.pcfgtokensofw(word) == res
 
 
-class TestModel(object):
-    def test_model_prob(self):
-        modelfunc = pwm.models.pcfgtokensofw
-        w = 'password12'
-        T = pwm.buildmodel.create_model(modelfunc, listw=[(w, 12)])
-        print list(T.items())
-        assert pwm.buildmodel.prob(T, w, modelfunc) == 1.0

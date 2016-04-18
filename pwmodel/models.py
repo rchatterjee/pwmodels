@@ -7,6 +7,7 @@ def ngramsofw(word, n=3):
     """Returns the @n-grams of a word @w
     """
     assert n>0, "The 'n' of ngrams must be greater than 0"
+    word = helper.TART + word + helper.END
     if len(word)<=n:
         return [word]
         

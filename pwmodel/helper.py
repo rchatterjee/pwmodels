@@ -16,6 +16,9 @@ sys.path.append(BASE_DIR)
 MAX_INT = 2**64-1
 DEBUG = True
 
+START = chr(0x01)
+END = chr(0x02)
+
 import os
 
 from os.path import (expanduser)
