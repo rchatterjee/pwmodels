@@ -4,7 +4,7 @@ import dawg
 
 import models
 
-MIN_PROB = 1e-6
+MIN_FREQ = 0.5
 
 def create_model(modelfunc, fname='', listw=[], outfname=''):
     """:modelfunc: is a function that takes a word and returns its
@@ -32,7 +32,10 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
 
 def prob(nDawg, w, modelfunc):
     t = float(nDawg.get('__TOTAL__'))
-    return helper.prod(nDawg.get(ng, MIN_PROB)/t
+    print '\n'.join("{} -> {}".format(ng, nDawg.get(ng, MIN_FREQ))
+                       for ng in modelfunc(w))
+
+    return helper.prod(nDawg.get(ng, MIN_FREQ)/t
                        for ng in modelfunc(w))
 
 
@@ -54,7 +57,7 @@ def create_ngram_model(fname='', listw=[], outfname='', n=3):
     """
 
     return create_model(fname=fame, listw=listw, outfname=outfname,
-                        modelfunc=lambda w: models.ngramsofw(n=3))
+                        modelfunc=lambda w: models.ngramsofw(w, n=3))
 
 if __name__ == "__main__":
     import sys
