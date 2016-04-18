@@ -17,7 +17,7 @@ class TestNgramPw(object):
 
 # class TestModel(object):
 #     def test_model_prob(self):
-#         modelfunc = pwm.models.pcfgtokensofw
+#         pcfgpw = pwm.PcfgPw(pw
 #         w = 'password12'
 #         T = pwm.buildmodel.create_model(modelfunc, listw=[(w, 12)])
 #         print list(T.items())

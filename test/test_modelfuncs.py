@@ -5,7 +5,7 @@ import os
 leak_file = os.path.expanduser('~/passwords/phpbb-withcount.txt.bz2')
 
 @pytest.mark.parametrize('ngrampw',
-                         [pwm.ngram.NGramPw(leak_file)]
+                         [pwm.models.NGramPw(leak_file)]
 )
 class TestNgram(object):
     @pytest.mark.parametrize('word', ['asd', 'a'])
@@ -35,13 +35,20 @@ class TestNgram(object):
                 ret += w[-1]
         assert ret[1:-1] == word
 
+@pytest.mark.parametrize('pcfgpw',
+                         [pwm.models.PcfgPw(leak_file)]
+)
 class TestPCFG(object):
-    @pytest.mark.parametrize(('word', 'res'), [('password', ['password']),
-                                               ('p@123', ['p', '@', '123']),
-                                               ('@12pass', ['@', '12', 'pass']),
-                                               ('pass@12', ['pass', '@', '12'])
+    @pytest.mark.parametrize(('word', 'res'), [('password', ['__S__L8__', '__L8__', 'password']),
+                                               ('p@123', ['__S__L1Y1D3__', '__L1__', '__Y1__', '__D3__', 'p', '@', '123']),
+                                               ('@12pass', ['__S__Y1D2L4__', '__Y1__', '__D2__', '__L4__','@', '12', 'pass']),
+                                               ('pass@12', ['__S__L4Y1D2__', '__L4__', '__Y1__', '__D2__','pass', '@', '12'])
     ])
-    def test_completeness(self, word, res):
-        assert pwm.models.pcfgtokensofw(word) == res
+    def test_completeness(self, word, res, pcfgpw):
+        assert pcfgpw.pcfgtokensofw(word) == res
 
+    def test_prob(self, pcfgpw):
 
+        for pw1, pw2  in [('password12', 'assword1'),
+                          ('abcd123', 'abcd1234')]:
+            assert pcfgpw.prob(pw1) > pcfgpw.prob(pw2)

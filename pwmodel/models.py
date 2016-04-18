@@ -1,30 +1,75 @@
-
+import os
 import helper
+import dawg
+from collections import defaultdict
+import re
 
-N = 3 # the 'n' of the n-gram
-
-
-
-def pcfgtokensofw(word):
-    """This splits the word into chunks similar to as described in Weir
-    et al Oakland'14 paper.
-    E.g.,
-    >> ngrampw.pcfgtokensofw('password@123')
-    ['password', '@', '123', '__L8__', '__Y1__', '__D3__']
+def create_model(modelfunc, fname='', listw=[], outfname=''):
+    """:modelfunc: is a function that takes a word and returns its
+    splits.  for ngram model this function returns all the ngrams of a
+    word, for PCFG it will return te split of the password. So, it
+    takes a string and returns a list of strings
 
     """
-    tok = helper.tokens(word)
-    # No need to send the symbols, at the time of final probability
-    # calculation, their contribution is cacelled.
+    pws = []
+    if fname:
+        pws = helper.open_get_line(fname)
+    def join_iterators(_pws, listw):
+        for p in _pws: yield p
+        for p in listw: yield p
+    big_dict = defaultdict(int)
+    for pw, c in join_iterators(pws, listw):
+        for ng in modelfunc(pw):
+            big_dict[unicode(ng)] += c
+    big_dict['__TOTAL__'] = len(big_dict)
+    print len(big_dict), big_dict
+    nDawg= dawg.IntCompletionDAWG(big_dict)
+    if not outfname:
+        outfname = 'tmpmodel.dawg'
+    nDawg.save(outfname)
+    return nDawg
 
-    # *Thm*: If in my model there is a constant split of a password,
-    # there is no need to worry about the tree of the split, the split
-    # is good enough to build the model
+# def prob(nDawg, w, modelfunc):
+#     t = float(nDawg.get('__TOTAL__'))
+#     print '\n'.join("{} -> {}".format(ng, nDawg.get(ng, MIN_FREQ))
+#                        for ng in modelfunc(w))
+
+#     return helper.prod(nDawg.get(ng, MIN_FREQ)/t
+#                        for ng in modelfunc(w))
+
+
+def read_dawg(fname):
+    nDawg= dawg.IntCompletionDAWG(fname)
+    nDawg.load(fname)
+    return nDawg
+
+
+class PwModel(object):
+    def __init__(self, pwfilename=None, **kwargs):
+        self._leak = os.path.basename(pwfilename).split('-')[0]
+        print kwargs
+        n = kwargs.get('n', 0)
+        self._modelf = '{}/data/ngram-{}-{}.dawg'\
+                   .format(os.path.dirname(__file__), n, self._leak)
+        self._n = n
+        try:
+            self._T = read_dawg(self._modelf)
+        except IOError:
+            print "I could not find the file ({}).\nHang on I "\
+                "am creating the ngram model for you!"\
+                .format(self._modelf)
+            with open(self._modelf, 'wb') as f:
+                self._T = create_model(fname=pwfilename, outfname=self._modelf,
+                                       modelfunc=kwargs.get('modelfunc', self.modelfunc))
+
+    def modelfunc(self, w):
+        print "Error: Damn I am called!!"
+        raise Exception("Not implemented")
+        return [w]
     
-    # sym = ['__{0}{1}__'.format(helper.whatchar(w), len(w))
-    # for w in tok]
-    # return tok + sym
-    return tok
+    def prob(self, word):
+        return -1
+
 
 def wholepwmodel(word):
     """This model just returns the exact password distribution induced by
@@ -33,6 +78,124 @@ def wholepwmodel(word):
     ['password12']
     """
     return [wholemodel]
+
+
+
+################################################################################
+MIN_PROB = 1e-10
+
+class PcfgPw(PwModel):
+    """
+    """
+    def __init__(self, pwfilename, **kwargs):
+        kwargs['modelfunc'] = self.pcfgtokensofw
+        super(PcfgPw, self).__init__(pwfilename=pwfilename, **kwargs)
+        if not self._T:
+            print "I could not find the file ({}).\nHang on I "\
+                "am creating the ngram model for you!"\
+                .format(self._ngrampwf)
+            with open(self._ngrampwf, 'wb') as f:
+                self._T = create_model(fname=pwfilename, outfname=self._ngrampwf,
+                                       modelfunc=self.pcfgtokensofw)
+
+    def pcfgtokensofw(self, word):
+        """This splits the word into chunks similar to as described in Weir
+        et al Oakland'14 paper.
+        E.g.,
+        >> ngrampw.pcfgtokensofw('password@123')
+        ['password', '@', '123', '__L8__', '__Y1__', '__D3__']
+
+        """
+        tok = helper.tokens(word)
+
+        sym = ['__{0}{1}__'.format(helper.whatchar(w), len(w))
+               for w in tok]
+        S = ['__S__' + ''.join(sym).replace('_', '') + '__']
+        return S + sym + tok
+
+    def tokprob(self, tok, nonT):
+        """
+        return P[nonT -> tok], 
+        e.g., P[ W3 -> 'abc']
+        """
+        
+        p = self._T.get(tok, 0)/float(self._T.get(nonT, 1))
+        if not p:
+            p = MIN_PROB
+        return p
+
+    def prob(self, pw):
+        """
+        Return the probability of pw under the Weir PCFG model.
+        P[{S -> L2D1Y3, L2 -> 'ab', D1 -> '1', Y3 -> '!@#'}]
+        """
+
+        tokens = self.pcfgtokensofw(pw)
+        S, tokens = tokens[0], tokens[1:]
+        l = len(tokens)
+        assert l % 2 == 0, "Expecting even number of tokens!. got {}".format(tokens)
+
+        p = float(self._T.get(S, 0.0))/sum(v for k,v in self._T.items(u'__S__'))
+        for i, t in enumerate(tokens):
+            if i<l/2:
+                p /= float(self._T.get(t))
+            else:
+                p *= self._T.get(t)
+            # print pw, p, t, self._T.get(t)
+        return p
+
+################################################################################
+
+
+class NGramPw(PwModel):
+    """Create a list of ngrams from a file @fname.  NOTE: the file must be
+    in password file format.  See smaple/pw.txt file for the format.
+    If the file is empty string, then it will try to read the
+    passwords from the @listw which is a list of tuples [(w1, f1),
+    (w2, f2)...]. (It can be an iterator.)  @n is again the 'n' of
+    n-gram Writes the ngrams in a file at @outfname. if outfname is
+    empty string, it will print the ngrams on a file named
+    'ngrams.dawg'
+
+    """
+
+    def __init__(self, pwfilename, **kwargs):
+        kwargs['modelfunc'] = self.ngramsofw
+        kwargs['n'] = kwargs.get('n', 3)
+        super(NGramPw, self).__init__(pwfilename=pwfilename, **kwargs)
+        self._n = kwargs.get('n', 3)
+        
+    def cprob(self, c, history):
+        """
+        :param history: string
+        :param c: character
+        P[c | history] = f(historyc)/f(history)
+        returns P[c | history]
+        """
+        if len(history)>=self._n:
+            history = history[-(self._n-1):]
+        d = float(sum(v for k,v in self._T.iteritems(unicode(history))))
+        n = sum(v for k,v in self._T.iteritems(unicode(history+c)))  # TODO - implement backoff
+        assert d!=0, "Denominator zero: {} {} ({})".format(c, history, self._n)
+        print "{}+{} --> {}".format(history, c, n/d)
+        return n/d
+    
+    def ngramsofw(self, word):
+        """Returns the @n-grams of a word @w
+        """
+        word = helper.START + word + helper.END
+        n = self._n
+        if len(word)<=n:
+            return [word]
+        
+        return [word[i:i+n]
+                for i in xrange(0, len(word)-n+1)]
+
+    def prob(self, pw):
+        pw = helper.START + pw + helper.END
+        return helper.prod(self.cprob(pw[i], pw[:i])
+                    for i in xrange(self._n-1, len(pw)))
+
 
 
 
