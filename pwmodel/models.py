@@ -22,7 +22,6 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
         for ng in modelfunc(pw):
             big_dict[unicode(ng)] += c
     big_dict['__TOTAL__'] = len(big_dict)
-    print len(big_dict), big_dict
     nDawg= dawg.IntCompletionDAWG(big_dict)
     if not outfname:
         outfname = 'tmpmodel.dawg'
@@ -47,23 +46,24 @@ def read_dawg(fname):
 class PwModel(object):
     def __init__(self, pwfilename=None, **kwargs):
         self._leak = os.path.basename(pwfilename).split('-')[0]
-        print kwargs
-        n = kwargs.get('n', 0)
-        self._modelf = '{}/data/ngram-{}-{}.dawg'\
-                   .format(os.path.dirname(__file__), n, self._leak)
-        self._n = n
+        modelname = kwargs.get('modelname', 'ngram-0')
+        self._modelf = '{}/data/{}-{}.dawg'\
+                   .format(os.path.dirname(__file__),
+                           modelname,
+                           self._leak)
         try:
             self._T = read_dawg(self._modelf)
         except IOError:
             print "I could not find the file ({}).\nHang on I "\
-                "am creating the ngram model for you!"\
-                .format(self._modelf)
+                "am creating the {} model for you!"\
+                .format(self._modelf, modelname)
+            if not os.path.exists(os.path.dirname(self._modelf)):
+                os.makedirs(os.path.dirname(self._modelf))
             with open(self._modelf, 'wb') as f:
                 self._T = create_model(fname=pwfilename, outfname=self._modelf,
                                        modelfunc=kwargs.get('modelfunc', self.modelfunc))
 
     def modelfunc(self, w):
-        print "Error: Damn I am called!!"
         raise Exception("Not implemented")
         return [w]
     
@@ -85,18 +85,12 @@ def wholepwmodel(word):
 MIN_PROB = 1e-10
 
 class PcfgPw(PwModel):
-    """
+    """Creates a pcfg model from the password in @pwfilename. 
     """
     def __init__(self, pwfilename, **kwargs):
         kwargs['modelfunc'] = self.pcfgtokensofw
+        kwargs['modelname'] = 'weir-pcfg'
         super(PcfgPw, self).__init__(pwfilename=pwfilename, **kwargs)
-        if not self._T:
-            print "I could not find the file ({}).\nHang on I "\
-                "am creating the ngram model for you!"\
-                .format(self._ngrampwf)
-            with open(self._ngrampwf, 'wb') as f:
-                self._T = create_model(fname=pwfilename, outfname=self._ngrampwf,
-                                       modelfunc=self.pcfgtokensofw)
 
     def pcfgtokensofw(self, word):
         """This splits the word into chunks similar to as described in Weir
@@ -156,14 +150,16 @@ class NGramPw(PwModel):
     n-gram Writes the ngrams in a file at @outfname. if outfname is
     empty string, it will print the ngrams on a file named
     'ngrams.dawg'
-
+    :param pwfilename: a `password' file
+    :param n: an integer (NOTE: you should provide a `n`.  `n` is default to 3)
     """
 
     def __init__(self, pwfilename, **kwargs):
         kwargs['modelfunc'] = self.ngramsofw
         kwargs['n'] = kwargs.get('n', 3)
-        super(NGramPw, self).__init__(pwfilename=pwfilename, **kwargs)
+        kwargs['modelname'] = 'ngram-{}'.format(kwargs['n'])
         self._n = kwargs.get('n', 3)
+        super(NGramPw, self).__init__(pwfilename=pwfilename, **kwargs)
         
     def cprob(self, c, history):
         """
@@ -177,7 +173,6 @@ class NGramPw(PwModel):
         d = float(sum(v for k,v in self._T.iteritems(unicode(history))))
         n = sum(v for k,v in self._T.iteritems(unicode(history+c)))  # TODO - implement backoff
         assert d!=0, "Denominator zero: {} {} ({})".format(c, history, self._n)
-        print "{}+{} --> {}".format(history, c, n/d)
         return n/d
     
     def ngramsofw(self, word):
