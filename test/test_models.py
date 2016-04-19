@@ -21,6 +21,15 @@ class TestModel(object):
         w = 'password12'
         assert pcfgpw.prob(w) > pcfgpw.prob(w[1:])
 
+class TestHistPw(object):
+    def test_ordering(self):
+        pws = [l for i,l in enumerate(pwm.helper.open_get_line(leak_file)) if i<1000]
+        hm = pwm.HistPw(leak_file)
+        for i, l in enumerate(hm.iterpasswords()):
+            if i>=1000: break
+            assert pws[i] == l
+
+
 def test_qth_pw():
     hm = pwm.HistPw(leak_file)
     L = [hm.qth_pw(q)

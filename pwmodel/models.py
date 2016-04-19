@@ -222,6 +222,7 @@ class HistPw(PwModel):
         kwargs['modelfunc'] = lambda x: [x]
         kwargs['modelname'] = 'histogram'
         super(HistPw, self).__init__(pwfilename=pwfilename, **kwargs)
+        self.pwfilename = pwfilename
 
     def prob(self, pw):
         """
@@ -229,6 +230,9 @@ class HistPw(PwModel):
         P[pw] = n(pw)/n(__total__)
         """
         return float(self._T.get(pw, 0))/self._T['__TOTALF__']
+
+    def iterpasswords(self):
+        return helper.open_get_line(self.pwfilename) 
 
 
 if __name__ == "__main__":
