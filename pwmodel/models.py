@@ -18,10 +18,15 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
         for p in _pws: yield p
         for p in listw: yield p
     big_dict = defaultdict(int)
+    total_f, total_e = 0, 0
     for pw, c in join_iterators(pws, listw):
         for ng in modelfunc(pw):
             big_dict[unicode(ng)] += c
-    big_dict['__TOTAL__'] = len(big_dict)
+        total_f += c
+        total_e += 1
+    big_dict['__TOTAL__'] = total_e
+    big_dict['__TOTALF__'] = total_f
+
     nDawg= dawg.IntCompletionDAWG(big_dict)
     if not outfname:
         outfname = 'tmpmodel.dawg'
@@ -193,7 +198,27 @@ class NGramPw(PwModel):
 
 
 
+################################################################################
+
+class HistModel(PwModel):
+    """
+    Creates a histograms frmo the given file. 
+    Just converts the password file into  a .dawg  file.
+    """
+    def __init__(pwfilename, **kwargs): 
+        kwargs['modelfunc'] = lambda x: x
+        kwargs['modelname'] = 'histogram'
+        super(NGramPw, self).__init__(pwfilename=pwfilename, **kwargs)
+
+    def prob(self, pw):
+        """
+        returns the probabiltiy of pw in the model.
+        P[pw] = n(pw)/n(__total__)
+        """
+        return float(self._T.get(pw, 0))/self._T['__TOTALF__']
+
 
 if __name__ == "__main__":
     w = 'passsword@123'
     print pcfgtokensofw(w)
+    
