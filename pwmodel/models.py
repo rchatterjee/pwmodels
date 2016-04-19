@@ -88,6 +88,8 @@ class PwModel(object):
     def get(self, pw):
         return self.prob(pw)
 
+    def __str__(self):
+        return 'Pwmodel<{}-{}>'.format(self.modelname + self._leak)
 
 ################################################################################
 MIN_PROB = 1e-10
@@ -223,6 +225,11 @@ class HistPw(PwModel):
         kwargs['modelname'] = 'histogram'
         super(HistPw, self).__init__(pwfilename=pwfilename, **kwargs)
         self.pwfilename = pwfilename
+
+    def probsum(self, pws):
+        """Sum of probs of all passwords in @pws."""
+        
+        return sum(self.prob(pw) for pw in pws)
 
     def prob(self, pw):
         """
