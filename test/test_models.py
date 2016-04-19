@@ -26,3 +26,28 @@ def test_qth_pw():
     L = [hm.qth_pw(q)
          for q in xrange(100, 110, 1)]
     assert all(x>y for x,y in zip(L, L[1:]))
+
+def test_cmp_ngram():
+    """
+    Test three models and order them
+    """
+    models = [pwm.NGramPw(leak_file, n=3),
+              pwm.NGramPw(leak_file, n=4),
+              pwm.NGramPw(leak_file, n=5),
+              pwm.PcfgPw(leak_file),
+              pwm.HistModel(leak_file)]
+    pwlist = ["123456", "12345", "123456789", "password", "iloveyou", "princess",
+              "1234567", "rockyou", "12345678", "abc123", "nicole", "daniel",
+              "babygirl", "monkey", "lovely", "jessica", "654321", "michael",
+              "ashley", "qwerty", "111111", "iloveu", "000000", "michelle",
+              "tigger",  "sunshine", "chocolate", "password1", "soccer", "anthony",
+              "friends", "butterfly", "purple", "angel", "jordan", "liverpool",
+              "justin"]
+
+    pwlist = [sorted(pwlist, key=m.prob, reverse=True)
+              for m in models]
+    # for i in xrange(0, len(pwlist), g):
+    #     assert set(pwlist3[i:i+g])==set(pwlist4[i:i+g])==set(pwlist5[i:i+g])
+    print ',\t\t'.join(m.modelname for m in models)
+    for pws in zip(*pwlist):
+        print ',\t\t'.join(pws)

@@ -55,17 +55,17 @@ def read_dawg(fname):
 class PwModel(object):
     def __init__(self, pwfilename=None, **kwargs):
         self._leak = os.path.basename(pwfilename).split('-')[0]
-        modelname = kwargs.get('modelname', 'ngram-0')
+        self.modelname = kwargs.get('modelname', 'ngram-0')
         self._modelf = '{}/data/{}-{}.dawg'\
                    .format(os.path.dirname(__file__),
-                           modelname,
+                           self.modelname,
                            self._leak)
         try:
             self._T = read_dawg(self._modelf)
         except IOError:
             print "I could not find the file ({}).\nHang on I "\
                 "am creating the {} model for you!"\
-                .format(self._modelf, modelname)
+                .format(self._modelf, self.modelname)
             if not os.path.exists(os.path.dirname(self._modelf)):
                 os.makedirs(os.path.dirname(self._modelf))
             with open(self._modelf, 'wb') as f:
@@ -139,10 +139,13 @@ class PcfgPw(PwModel):
 
         p = float(self._T.get(S, 0.0))/sum(v for k,v in self._T.items(u'__S__'))
         for i, t in enumerate(tokens):
+            f = self._T.get(t, 0.0)
+            if f==0:
+                return 0.0
             if i<l/2:
-                p /= float(self._T.get(t))
+                p /= f
             else:
-                p *= self._T.get(t)
+                p *= f
             # print pw, p, t, self._T.get(t)
         return p
 
@@ -178,12 +181,14 @@ class NGramPw(PwModel):
         """
         if len(history)>=self._n:
             history = history[-(self._n-1):]
-        d = float(sum(v for k,v in self._T.iteritems(unicode(history))))
-        n = sum(v for k,v in self._T.iteritems(unicode(history+c)))  
+        d = 0.0
+        while d==0 and len(history)>=1:
+            d = float(sum(v for k,v in self._T.iteritems(unicode(history))))
+            n = sum(v for k,v in self._T.iteritems(unicode(history+c)))  
+            history = history[1:]
         # TODO - implement backoff
-        if d==0:
-            return 0.0
-        assert d!=0, "Denominator zero: {} {} ({})".format(c, history, self._n)
+        assert d!=0, "ERROR: Denominator zero!\n"\
+                   "d={} n={} w={} ({})".format(d, n, history+c, self._n)
         return n/d
     
     def ngramsofw(self, word):
@@ -198,9 +203,11 @@ class NGramPw(PwModel):
                 for i in xrange(0, len(word)-n+1)]
 
     def prob(self, pw):
+        if len(pw)<self._n:
+            return 0.0
         pw = helper.START + pw + helper.END
         return helper.prod(self.cprob(pw[i], pw[:i])
-                    for i in xrange(self._n-1, len(pw)))
+                    for i in xrange(1, len(pw)))
 
 
 
