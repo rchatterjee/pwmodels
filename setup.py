@@ -37,7 +37,10 @@ setup(
 
     keywords="password model ngram pcfg cracking",
     packages=['pwmodel'], #find_packages(exclude(['contrib', 'docs', 'tests*'])),
-                           
-    install_requires=['DAWG'],
+    package_dir={'pwmodel': 'pwmodel'},
+    package_data={'pwmodel': ['data/*.dawg']},
+    install_requires=[
+        'DAWG',
+      ],
     # data_files=[('pwmodel/data/', ['ngram-0-phpbb.dawg', 'ngram-3-phpbb.dawg', 'ngram-4-phpbb.dawg'])]
 )
