@@ -213,7 +213,7 @@ class NGramPw(PwModel):
 
 ################################################################################
 
-class HistModel(PwModel):
+class HistPw(PwModel):
     """
     Creates a histograms frmo the given file. 
     Just converts the password file into  a .dawg  file.
@@ -221,7 +221,7 @@ class HistModel(PwModel):
     def __init__(self, pwfilename, **kwargs): 
         kwargs['modelfunc'] = lambda x: [x]
         kwargs['modelname'] = 'histogram'
-        super(HistModel, self).__init__(pwfilename=pwfilename, **kwargs)
+        super(HistPw, self).__init__(pwfilename=pwfilename, **kwargs)
 
     def prob(self, pw):
         """

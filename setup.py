@@ -42,5 +42,6 @@ setup(
     install_requires=[
         'DAWG',
       ],
+    scripts=['scripts/buildmodel.py']
     # data_files=[('pwmodel/data/', ['ngram-0-phpbb.dawg', 'ngram-3-phpbb.dawg', 'ngram-4-phpbb.dawg'])]
 )

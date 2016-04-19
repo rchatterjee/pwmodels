@@ -1,8 +1,10 @@
+#!/usr/bin/env python
+
 from collections import defaultdict
-import helper
 import dawg
-from models import HistModel, PwModel, NGramPw
-import models
+
+from pwmodel import HistPw, PcfgPw, NGramPw
+
 
 MIN_FREQ = 0.5
 
@@ -16,7 +18,7 @@ if __name__ == "__main__":
         print Usage
         sys.exit(1)
     if sys.argv[1] == '-hist':
-        hm = HistModel(sys.argv[2])
+        hm = HistPw(sys.argv[2])
         print hm._modelf
     elif sys.argv[1] == '-ngram':
         hm = NGramPw(sys.argv[2])

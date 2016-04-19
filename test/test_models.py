@@ -22,7 +22,7 @@ class TestModel(object):
         assert pcfgpw.prob(w) > pcfgpw.prob(w[1:])
 
 def test_qth_pw():
-    hm = pwm.HistModel(leak_file)
+    hm = pwm.HistPw(leak_file)
     L = [hm.qth_pw(q)
          for q in xrange(100, 110, 1)]
     assert all(x>y for x,y in zip(L, L[1:]))
@@ -35,7 +35,7 @@ def test_cmp_ngram():
               pwm.NGramPw(leak_file, n=4),
               pwm.NGramPw(leak_file, n=5),
               pwm.PcfgPw(leak_file),
-              pwm.HistModel(leak_file)]
+              pwm.HistPw(leak_file)]
     pwlist = ["123456", "12345", "123456789", "password", "iloveyou", "princess",
               "1234567", "rockyou", "12345678", "abc123", "nicole", "daniel",
               "babygirl", "monkey", "lovely", "jessica", "654321", "michael",
