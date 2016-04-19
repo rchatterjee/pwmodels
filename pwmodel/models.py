@@ -84,7 +84,9 @@ class PwModel(object):
         returns the qth most probable element in the dawg.
         """
         return heapq.nlargest(q+2, self._T.iteritems())[-1]
-
+    
+    def get(self, pw):
+        return self.prob(pw)
 
 
 ################################################################################
@@ -177,7 +179,10 @@ class NGramPw(PwModel):
         if len(history)>=self._n:
             history = history[-(self._n-1):]
         d = float(sum(v for k,v in self._T.iteritems(unicode(history))))
-        n = sum(v for k,v in self._T.iteritems(unicode(history+c)))  # TODO - implement backoff
+        n = sum(v for k,v in self._T.iteritems(unicode(history+c)))  
+        # TODO - implement backoff
+        if d==0:
+            return 0.0
         assert d!=0, "Denominator zero: {} {} ({})".format(c, history, self._n)
         return n/d
     
