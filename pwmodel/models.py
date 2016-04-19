@@ -13,7 +13,7 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
     """
     pws = []
     if fname:
-        pws = helper.open_get_line(fname)
+        pws = helper.open_get_line(fname, limit=3e6)
     def join_iterators(_pws, listw):
         for p in _pws: yield p
         for p in listw: yield p
@@ -22,6 +22,8 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
     for pw, c in join_iterators(pws, listw):
         for ng in modelfunc(pw):
             big_dict[unicode(ng)] += c
+        if len(big_dict)%100000 == 0:
+            print "Dictionary size: {}".format(len(big_dict))
         total_f += c
         total_e += 1
     big_dict['__TOTAL__'] = total_e
@@ -74,15 +76,6 @@ class PwModel(object):
     
     def prob(self, word):
         return -1
-
-
-def wholepwmodel(word):
-    """This model just returns the exact password distribution induced by
-    the password leak file. E.g.,
-    >>> ngrampw.wholepwmodel('password12')
-    ['password12']
-    """
-    return [wholemodel]
 
 
 
@@ -205,10 +198,10 @@ class HistModel(PwModel):
     Creates a histograms frmo the given file. 
     Just converts the password file into  a .dawg  file.
     """
-    def __init__(pwfilename, **kwargs): 
-        kwargs['modelfunc'] = lambda x: x
+    def __init__(self, pwfilename, **kwargs): 
+        kwargs['modelfunc'] = lambda x: [x]
         kwargs['modelname'] = 'histogram'
-        super(NGramPw, self).__init__(pwfilename=pwfilename, **kwargs)
+        super(HistModel, self).__init__(pwfilename=pwfilename, **kwargs)
 
     def prob(self, pw):
         """
