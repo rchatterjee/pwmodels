@@ -3,6 +3,8 @@ import helper
 import dawg
 from collections import defaultdict
 import re
+import heapq
+
 
 def create_model(modelfunc, fname='', listw=[], outfname=''):
     """:modelfunc: is a function that takes a word and returns its
@@ -76,6 +78,12 @@ class PwModel(object):
     
     def prob(self, word):
         return -1
+
+    def qth_pw(self, q):
+        """
+        returns the qth most probable element in the dawg.
+        """
+        return heapq.nlargest(q+2, self._T.iteritems())[-1]
 
 
 

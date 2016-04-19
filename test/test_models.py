@@ -15,12 +15,14 @@ class TestNgramPw(object):
 
 # PCFG probabilties are wrong -- TODO - will fix it later
 
-# class TestModel(object):
-#     def test_model_prob(self):
-#         pcfgpw = pwm.PcfgPw(pw
-#         w = 'password12'
-#         T = pwm.buildmodel.create_model(modelfunc, listw=[(w, 12)])
-#         print list(T.items())
-#         assert pwm.buildmodel.prob(T, w, modelfunc) == 1.0
+class TestModel(object):
+    def test_model_prob(self):
+        pcfgpw = pwm.PcfgPw(leak_file)
+        w = 'password12'
+        assert pcfgpw.prob(w) > pcfgpw.prob(w[1:])
 
-
+def test_qth_pw():
+    hm = pwm.HistModel(leak_file)
+    L = [hm.qth_pw(q)
+         for q in xrange(100, 110, 1)]
+    assert all(x>y for x,y in zip(L, L[1:]))
