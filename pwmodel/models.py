@@ -89,7 +89,7 @@ class PwModel(object):
         return self.prob(pw)
 
     def __str__(self):
-        return 'Pwmodel<{}-{}>'.format(self.modelname + self._leak)
+        return 'Pwmodel<{}-{}>'.format(self.modelname, self._leak)
 
 ################################################################################
 MIN_PROB = 1e-10
