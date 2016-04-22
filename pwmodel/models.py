@@ -23,7 +23,7 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
     total_f, total_e = 0, 0
     for pw, c in join_iterators(pws, listw):
         for ng in modelfunc(pw):
-            big_dict[unicode(ng)] += c
+            big_dict[ng] += c
         if len(big_dict)%100000 == 0:
             print "Dictionary size: {}".format(len(big_dict))
         total_f += c

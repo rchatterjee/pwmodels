@@ -227,7 +227,7 @@ def get_line(file_object, limit=-1, pw_filter=lambda x: True):
             continue
         if w and pw_filter(w) and c>0:
             i += 1
-            yield w,c
+            yield w.encode('utf8'), c
         else:
             pass
             #warning ("Filter Failed or malformed string: ", w, c)
