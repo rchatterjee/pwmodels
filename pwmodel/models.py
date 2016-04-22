@@ -183,11 +183,19 @@ class NGramPw(PwModel):
         """
         if len(history)>=self._n:
             history = history[-(self._n-1):]
+        if not isinstance(history, unicode):
+            history = unicode(history)
+
         d = 0.0
         while d==0 and len(history)>=1:
-            d = float(sum(v for k,v in self._T.iteritems(unicode(history))))
-            n = sum(v for k,v in self._T.iteritems(unicode(history+c)))  
+            try:
+                d = float(sum(v for k,v in self._T.iteritems(history)))
+                n = sum(v for k,v in self._T.iteritems(history+c))
+            except UnicodeDecodeError, e:
+                print "ERROR:", repr(history), e
+                raise e
             history = history[1:]
+
         # TODO - implement backoff
         assert d!=0, "ERROR: Denominator zero!\n"\
                    "d={} n={} w={} ({})".format(d, n, history+c, self._n)

@@ -16,8 +16,8 @@ sys.path.append(BASE_DIR)
 MAX_INT = 2**64-1
 DEBUG = True
 
-START = chr(0x01)
-END = chr(0x02)
+START = u'\x01' # chr(0x01)
+END = u'\x02' # chr(0x02)
 
 import os
 
@@ -180,11 +180,11 @@ def open_(filename, mode='r'):
     else:
         type_ = file_type(filename)
     if type_ == "bz2":
-        f = bz2.BZ2File(filename, mode)
+        f = bz2.BZ2File(filename, mode=mode)
     elif type_ == "gz":
-        f = tarfile.open(filename, mode)
+        f = tarfile.open(filename, mode=mode)
     else:
-        f = open(filename, mode);
+        f = open(filename, encoding='utf8', mode=mode);
     return f;
 
 def getallgroups(arr, k=-1):

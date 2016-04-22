@@ -11,7 +11,7 @@ class TestNgram(object):
     @pytest.mark.parametrize('word', ['asd', 'a'])
     def test_small_word(self, word, ngrampw):
         ngrampw._n = 6
-        assert ngrampw.ngramsofw(word) == ['\x01' + word + '\x02']
+        assert ngrampw.ngramsofw(word) == [u'\x01' + word + u'\x02']
 
     @pytest.mark.parametrize(('word', 'n'), [('password', 1),
                                              ('aaaaaaaaaa', 5)
