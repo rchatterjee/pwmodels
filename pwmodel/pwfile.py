@@ -1,4 +1,4 @@
-import helper
+import common_func as helper
 import marisa_trie, gzip
 class Passwords(object):
     """
