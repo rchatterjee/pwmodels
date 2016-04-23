@@ -5,7 +5,6 @@ from collections import defaultdict
 import re
 import heapq
 
-
 def create_model(modelfunc, fname='', listw=[], outfname=''):
     """:modelfunc: is a function that takes a word and returns its
     splits.  for ngram model this function returns all the ngrams of a
@@ -173,7 +172,13 @@ class NGramPw(PwModel):
         kwargs['modelname'] = 'ngram-{}'.format(kwargs['n'])
         self._n = kwargs.get('n', 3)
         super(NGramPw, self).__init__(pwfilename=pwfilename, **kwargs)
-        
+
+    @helper.memoized
+    def sum_freq(self, pre):
+        if not isinstance(pre, unicode):
+            pre = unicode(pre)
+        return float(sum(v for k,v in self._T.iteritems(pre)))
+
     def cprob(self, c, history):
         """
         :param history: string
@@ -189,8 +194,8 @@ class NGramPw(PwModel):
         d = 0.0
         while d==0 and len(history)>=1:
             try:
-                d = float(sum(v for k,v in self._T.iteritems(history)))
-                n = sum(v for k,v in self._T.iteritems(history+c))
+                d = self.sum_freq(history)
+                n = self.sum_freq(history+c)
             except UnicodeDecodeError, e:
                 print "ERROR:", repr(history), e
                 raise e
