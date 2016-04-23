@@ -219,7 +219,8 @@ def get_line(file_object, limit=-1, pw_filter=lambda x: True):
         c = int(c)
         w = w.replace('\x00', '\\x00')
         try:
-            w = w.decode('utf-8', errors='replace')
+            # w = w.decode('utf-8', errors='replace') # Fuck unicode, only printable allowed
+            w = w.decode('ascii', errors='replace')
         except UnicodeDecodeError:
             #try with latin1
             warning("Error in decoding: ({} {}). Line: {}. Ignoring!"\
@@ -227,7 +228,7 @@ def get_line(file_object, limit=-1, pw_filter=lambda x: True):
             continue
         if w and pw_filter(w) and c>0:
             i += 1
-            yield w.encode('utf8'), c
+            yield w, c
         else:
             pass
             #warning ("Filter Failed or malformed string: ", w, c)
