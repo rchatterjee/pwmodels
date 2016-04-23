@@ -179,6 +179,7 @@ class NGramPw(PwModel):
             pre = unicode(pre)
         return float(sum(v for k,v in self._T.iteritems(pre)))
 
+    @helper.memoized
     def cprob(self, c, history):
         """
         :param history: string
@@ -219,6 +220,7 @@ class NGramPw(PwModel):
         return [word[i:i+n]
                 for i in xrange(0, len(word)-n+1)]
 
+    @helper.memoized
     def prob(self, pw):
         if len(pw)<self._n:
             return 0.0
