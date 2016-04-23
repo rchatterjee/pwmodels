@@ -186,6 +186,7 @@ class NGramPw(PwModel):
         P[c | history] = f(historyc)/f(history)
         returns P[c | history]
         """
+        hist = history[:]
         if len(history)>=self._n:
             history = history[-(self._n-1):]
         if not isinstance(history, unicode):
@@ -203,8 +204,8 @@ class NGramPw(PwModel):
 
         # TODO - implement backoff
         assert d!=0, "ERROR: Denominator zero!\n"\
-                   "d={} n={} history={!r} c={!c} ({})"\
-                       .format(d, n, history, c, self._n)
+                   "d={} n={} history={!r} c={!r} ({})"\
+                       .format(d, n, hist, c, self._n)
         return n/d
     
     def ngramsofw(self, word):
@@ -222,9 +223,12 @@ class NGramPw(PwModel):
         if len(pw)<self._n:
             return 0.0
         pw = helper.START + pw + helper.END
-        return helper.prod(self.cprob(pw[i], pw[:i])
-                    for i in xrange(1, len(pw)))
-
+        try:
+            return helper.prod(self.cprob(pw[i], pw[:i])
+                               for i in xrange(1, len(pw)))
+        except Exception, e:
+            print repr(pw)
+            raise e
 
 
 ################################################################################
