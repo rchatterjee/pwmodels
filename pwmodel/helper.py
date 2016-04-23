@@ -45,7 +45,6 @@ class memoized(object):
         self.cache = {}
 
     def __call__(self, *args):
-        print (args)
         if not isinstance(args, collections.Hashable):
             # uncacheable. a list, for instance.
             # better to not cache than blow up.
@@ -56,7 +55,6 @@ class memoized(object):
         else:
             value = self.func(*args)
             self.cache[args] = value
-            print (self.cache)
             return value
 
     def __repr__(self):

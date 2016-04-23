@@ -203,7 +203,8 @@ class NGramPw(PwModel):
 
         # TODO - implement backoff
         assert d!=0, "ERROR: Denominator zero!\n"\
-                   "d={} n={} w={} ({})".format(d, n, history+c, self._n)
+                   "d={} n={} history={!r} c={!c} ({})"\
+                       .format(d, n, history, c, self._n)
         return n/d
     
     def ngramsofw(self, word):
