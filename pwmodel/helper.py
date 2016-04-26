@@ -51,10 +51,17 @@ class memoized(object):
         #     print ("Uncachebale", args)
         #     return self.func(*args)
         try:
-            return self.cache[args]
+            return self.cache[args[0]][args[1:]]
         except KeyError:
             value = self.func(*args)
-            self.cache[args] = value
+            try:
+                self.cache[args[0]][args[1:]] = value
+            except KeyError:
+                self.cache[args[0]] = {args[1:]: value}
+            if random.randint(0,10000)==0:
+                print ("Printing cache size:")
+                for k,v in self.cache.items():
+                    print (">>", repr(k), len(v))
             return value
 
     def __repr__(self):

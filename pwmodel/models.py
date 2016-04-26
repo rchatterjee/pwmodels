@@ -179,7 +179,6 @@ class NGramPw(PwModel):
             pre = unicode(pre)
         return float(sum(v for k,v in self._T.iteritems(pre)))
 
-    @helper.memoized
     def cprob(self, c, history):
         """
         :param history: string
@@ -197,7 +196,10 @@ class NGramPw(PwModel):
         while d==0 and len(history)>=1:
             try:
                 d = self.sum_freq(history)
-                n = self.sum_freq(history+c)
+                if len(history)<self._n-1:
+                    n = self.sum_freq(history+c)
+                else:
+                    n = self._T.get(history+c, 0.0)
             except UnicodeDecodeError, e:
                 print "ERROR:", repr(history), e
                 raise e
