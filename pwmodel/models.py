@@ -191,9 +191,8 @@ class NGramPw(PwModel):
             history = history[-(self._n-1):]
         if not isinstance(history, unicode):
             history = unicode(history)
-
         d = 0.0
-        while d==0 and len(history)>=1:
+        while (d==0 or n==0) and len(history)>=1:
             try:
                 d = self.sum_freq(history)
                 if len(history)<self._n-1:
@@ -209,6 +208,10 @@ class NGramPw(PwModel):
         assert d!=0, "ERROR: Denominator zero!\n"\
                    "d={} n={} history={!r} c={!r} ({})"\
                        .format(d, n, hist, c, self._n)
+        # if n==0:
+        #     print "Zero n", repr(hist), repr(c)
+                    
+
         return n/d
     
     def ngramsofw(self, word):
@@ -226,7 +229,7 @@ class NGramPw(PwModel):
     def prob(self, pw):
         if len(pw)<self._n:
             return 0.0
-        pw = helper.START + pw + helper.END
+        pw = helper.START + pw # + helper.END
         try:
             return helper.prod(self.cprob(pw[i], pw[:i])
                                for i in xrange(1, len(pw)))

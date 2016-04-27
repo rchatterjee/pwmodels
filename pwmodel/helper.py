@@ -58,10 +58,10 @@ class memoized(object):
                 self.cache[args[0]][args[1:]] = value
             except KeyError:
                 self.cache[args[0]] = {args[1:]: value}
-            if random.randint(0,10000)==0:
-                print ("Printing cache size:")
-                for k,v in self.cache.items():
-                    print (">>", repr(k), len(v))
+            # if random.randint(0,10000)==0:
+            #     print ("Printing cache size:", file=sys.stderr)
+            #     for k,v in self.cache.items():
+            #         print (">>", repr(k), len(v), file=sys.stderr)
             return value
 
     def __repr__(self):
@@ -95,7 +95,7 @@ class random:
     def choice(arr):
         i = random.randint(0, len(arr))
         return arr[i]
-    
+
     @staticmethod
     def sample(arr, n, unique=False):
         if unique:
@@ -329,6 +329,8 @@ def getIndex(p, A):
         if p < 0: break
     return i
 
+def dp(**kwargs):
+    print (kwargs, file=sys.stderr)
 
 if __name__ == "__main__":    
     print(list(getallgroups([1,2,3,4,5,6,7,8,9], 5)))
