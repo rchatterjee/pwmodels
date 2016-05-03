@@ -5,7 +5,6 @@ from collections import defaultdict
 import re
 import heapq
 
-
 def create_model(modelfunc, fname='', listw=[], outfname=''):
     """:modelfunc: is a function that takes a word and returns its
     splits.  for ngram model this function returns all the ngrams of a
@@ -173,7 +172,13 @@ class NGramPw(PwModel):
         kwargs['modelname'] = 'ngram-{}'.format(kwargs['n'])
         self._n = kwargs.get('n', 3)
         super(NGramPw, self).__init__(pwfilename=pwfilename, **kwargs)
-        
+
+    @helper.memoized
+    def sum_freq(self, pre):
+        if not isinstance(pre, unicode):
+            pre = unicode(pre)
+        return float(sum(v for k,v in self._T.iteritems(pre)))
+
     def cprob(self, c, history):
         """
         :param history: string
@@ -181,16 +186,19 @@ class NGramPw(PwModel):
         P[c | history] = f(historyc)/f(history)
         returns P[c | history]
         """
+        hist = history[:]
         if len(history)>=self._n:
             history = history[-(self._n-1):]
         if not isinstance(history, unicode):
             history = unicode(history)
-
         d = 0.0
-        while d==0 and len(history)>=1:
+        while (d==0 or n==0) and len(history)>=1:
             try:
-                d = float(sum(v for k,v in self._T.iteritems(history)))
-                n = sum(v for k,v in self._T.iteritems(history+c))
+                d = self.sum_freq(history)
+                if len(history)<self._n-1:
+                    n = self.sum_freq(history+c)
+                else:
+                    n = self._T.get(history+c, 0.0)
             except UnicodeDecodeError, e:
                 print "ERROR:", repr(history), e
                 raise e
@@ -198,7 +206,12 @@ class NGramPw(PwModel):
 
         # TODO - implement backoff
         assert d!=0, "ERROR: Denominator zero!\n"\
-                   "d={} n={} w={} ({})".format(d, n, history+c, self._n)
+                   "d={} n={} history={!r} c={!r} ({})"\
+                       .format(d, n, hist, c, self._n)
+        # if n==0:
+        #     print "Zero n", repr(hist), repr(c)
+                    
+
         return n/d
     
     def ngramsofw(self, word):
@@ -212,13 +225,17 @@ class NGramPw(PwModel):
         return [word[i:i+n]
                 for i in xrange(0, len(word)-n+1)]
 
+    @helper.memoized
     def prob(self, pw):
         if len(pw)<self._n:
             return 0.0
-        pw = helper.START + pw + helper.END
-        return helper.prod(self.cprob(pw[i], pw[:i])
-                    for i in xrange(1, len(pw)))
-
+        pw = helper.START + pw # + helper.END
+        try:
+            return helper.prod(self.cprob(pw[i], pw[:i])
+                               for i in xrange(1, len(pw)))
+        except Exception, e:
+            print repr(pw)
+            raise e
 
 
 ################################################################################

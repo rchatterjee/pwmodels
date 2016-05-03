@@ -31,6 +31,47 @@ pwd = os.path.dirname(os.path.abspath(__file__))
 ROCKYOU_TOTAL_CNT = 32603388.0
 pw_characters = string.ascii_letters + string.digits+string.punctuation + ' '
 
+
+import collections
+import functools
+
+class memoized(object):
+    '''Decorator. Caches a function's return value each time it is called.
+    If called later with the same arguments, the cached value is returned
+    (not reevaluated).
+    '''
+    def __init__(self, func):
+        self.func = func
+        self.cache = {}
+
+    def __call__(self, *args):
+        # if not isinstance(args, collections.Hashable):
+        #     # uncacheable. a list, for instance.
+        #     # better to not cache than blow up.
+        #     print ("Uncachebale", args)
+        #     return self.func(*args)
+        try:
+            return self.cache[args[0]][args[1:]]
+        except KeyError:
+            value = self.func(*args)
+            try:
+                self.cache[args[0]][args[1:]] = value
+            except KeyError:
+                self.cache[args[0]] = {args[1:]: value}
+            # if random.randint(0,10000)==0:
+            #     print ("Printing cache size:", file=sys.stderr)
+            #     for k,v in self.cache.items():
+            #         print (">>", repr(k), len(v), file=sys.stderr)
+            return value
+
+    def __repr__(self):
+        '''Return the function's docstring.'''
+        return self.func.__doc__
+
+    def __get__(self, obj, objtype):
+        '''Support instance methods.'''
+        return functools.partial(self.__call__, obj)
+
 class random:
     @staticmethod
     def randints(s, e, n=1):
@@ -54,7 +95,7 @@ class random:
     def choice(arr):
         i = random.randint(0, len(arr))
         return arr[i]
-    
+
     @staticmethod
     def sample(arr, n, unique=False):
         if unique:
@@ -288,6 +329,8 @@ def getIndex(p, A):
         if p < 0: break
     return i
 
+def dp(**kwargs):
+    print (kwargs, file=sys.stderr)
 
 if __name__ == "__main__":    
     print(list(getallgroups([1,2,3,4,5,6,7,8,9], 5)))
