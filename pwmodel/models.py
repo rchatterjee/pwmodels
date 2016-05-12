@@ -263,8 +263,8 @@ class HistPw(PwModel):
         """
         return float(self._T.get(pw, 0))/self._T['__TOTALF__']
 
-    def iterpasswords(self):
-        return helper.open_get_line(self.pwfilename) 
+    def iterpasswords(self, n=-1):
+        return helper.open_get_line(self.pwfilename, n=-1) 
 
 
 if __name__ == "__main__":
