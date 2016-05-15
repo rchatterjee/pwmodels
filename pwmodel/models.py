@@ -46,19 +46,21 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
 
 
 def read_dawg(fname):
-    nDawg= dawg.IntCompletionDAWG(fname)
-    nDawg.load(fname)
-    return nDawg
+    print "reading {fname}".format(fname=fname)
+    return dawg.IntCompletionDAWG(fname).load(fname)
 
 
 class PwModel(object):
     def __init__(self, pwfilename=None, **kwargs):
         self._leak = os.path.basename(pwfilename).split('-')[0]
+        freshall = kwargs.get('freshal', False)
         self.modelname = kwargs.get('modelname', 'ngram-0')
         self._modelf = '{}/data/{}-{}.dawg'\
-                   .format(os.path.dirname(__file__),
+                   .format(os.path.dirname(os.path.abspath(__file__)),
                            self.modelname,
                            self._leak)
+        if freshall:
+            os.remove(self._modelf)
         try:
             self._T = read_dawg(self._modelf)
         except IOError:
@@ -268,6 +270,10 @@ class HistPw(PwModel):
 
 
 if __name__ == "__main__":
-    w = 'passsword@123'
-    print pcfgtokensofw(w)
-    
+    import sys
+    if len(sys.argv)==3:
+        if sys.argv[1] == '-createHpw':
+            pwf = sys.argv[2]
+            pwf = HistPw(pwf, freshall=True)
+            print pwf
+            print pwf.prob('password12')
