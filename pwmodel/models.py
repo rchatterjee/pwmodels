@@ -265,8 +265,12 @@ class HistPw(PwModel):
         """
         return float(self._T.get(pw, 0))/self._T['__TOTALF__']
 
+    def correction(self, f=1):
+        total = {'rockyou': 32602160}
+        return f*self._T['__TOTALF__']/total.get(self._leak, self._T['__TOTALF__'])
+
     def iterpasswords(self, n=-1):
-        return helper.open_get_line(self.pwfilename, n=-1) 
+        return helper.open_get_line(self.pwfilename, limit=n) 
 
 
 if __name__ == "__main__":
