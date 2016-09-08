@@ -2,7 +2,8 @@
 
 from __future__ import print_function
 import sys, os
-import bz2, re
+import bz2
+import re
 import json, string
 #from Crypto.Random import random
 import random, re, itertools
@@ -202,12 +203,12 @@ def sort_dict(D):
 # returns the type of file.
 def file_type(filename):
     magic_dict = {
-        "\x1f\x8b\x08": "gz",
-        "\x42\x5a\x68": "bz2",
-        "\x50\x4b\x03\x04": "zip"
+        b"\x1f\x8b\x08": "gz",
+        b"\x42\x5a\x68": "bz2",
+        b"\x50\x4b\x03\x04": "zip"
     }
     max_len = max(len(x) for x in magic_dict)
-    with open(filename) as f:
+    with open(filename, 'rb') as f:
         file_start = f.read(max_len)
     for magic, filetype in magic_dict.items():
         if file_start.startswith(magic):
@@ -215,17 +216,19 @@ def file_type(filename):
     return "no match"
 
 
-def open_(filename, mode='r'):
-    if mode == 'w':
+def open_(filename, mode='rb'):
+    if mode.startswith('w'):
         type_ = filename.split('.')[-1]
     else:
         type_ = file_type(filename)
-    if type_ == "bz2":
-        f = bz2.BZ2File(filename, mode=mode)
-    elif type_ == "gz":
-        f = tarfile.open(filename, mode=mode)
+
+    if tarfile.is_tarfile(filename):
+        f = tarfile.open(filename, mode=mode, encoding='utf-8')
+    elif type_ == "bz2": # Not sure why it is here
+        # read in text mode
+        f = bz2.open(filename, 'rt', encoding='utf-8')
     else:
-        f = open(filename, encoding='utf8', mode=mode);
+        f = open(filename, encoding='utf-8', mode=mode);
     return f;
 
 def getallgroups(arr, k=-1):
@@ -247,26 +250,27 @@ def is_asciistring(s):
         # warning("UnicodeError:", s, str(e))
         return False
 
-def get_line(file_object, limit=-1, pw_filter=lambda x: True):
+def get_line(file_object, limit=-1, pw_filter=lambda x: True, errors='replace'):
     regex = re.compile(r'\s*([0-9]+) (.*)$')
     i = 0
     for l in file_object:
         if limit>0 and limit<=i:
             break
-        m = regex.match(l)
-        if not m:
-            warning ("REGEX FAIL: ", l)
-        c, w = m.groups()
+        # m = regex.match(l)
+        # if not m:
+        #     warning ("REGEX FAIL: ", l)
+        # c, w = m.groups()
+        c, w = l.rstrip('\n').lstrip().split(' ', 1)
         c = int(c)
         w = w.replace('\x00', '\\x00')
-        try:
-            # w = w.decode('utf-8', errors='replace') # Fuck unicode, only printable allowed
-            w = w.decode('ascii', errors='replace')
-        except UnicodeDecodeError:
-            #try with latin1
-            warning("Error in decoding: ({} {}). Line: {}. Ignoring!"\
-                    .format(w, c, l))
-            continue
+        # try:
+        #     # w = w.decode('utf-8', errors='replace') # Fuck unicode, only printable allowed
+        #     w = w.encode('ascii', errors=errors)
+        # except UnicodeEncodeError as e:
+        #     # try with latin1
+        #     warning("Error in decoding: ({} {}). Line: {}. Ignoring!"\
+        #             .format(w, c, l))
+        #     continue
         if w and pw_filter(w) and c>0:
             i += 1
             yield w, c

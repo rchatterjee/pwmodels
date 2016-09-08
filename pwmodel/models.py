@@ -1,5 +1,5 @@
-import os
-import helper
+import os, sys
+from . import helper
 import dawg
 from collections import defaultdict
 import re
@@ -24,7 +24,7 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
         for ng in modelfunc(pw):
             big_dict[ng] += c
         if len(big_dict)%100000 == 0:
-            print "Dictionary size: {}".format(len(big_dict))
+            print ("Dictionary size: {}".format(len(big_dict)))
         total_f += c
         total_e += 1
     big_dict['__TOTAL__'] = total_e
@@ -46,7 +46,7 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
 
 
 def read_dawg(fname):
-    print "reading {fname}".format(fname=fname)
+    print("reading {fname}".format(fname=fname))
     return dawg.IntCompletionDAWG(fname).load(fname)
 
 
@@ -64,9 +64,9 @@ class PwModel(object):
         try:
             self._T = read_dawg(self._modelf)
         except IOError:
-            print "I could not find the file ({}).\nHang on I "\
+            print("I could not find the file ({}).\nHang on I "\
                 "am creating the {} model for you!"\
-                .format(self._modelf, self.modelname)
+                .format(self._modelf, self.modelname))
             if not os.path.exists(os.path.dirname(self._modelf)):
                 os.makedirs(os.path.dirname(self._modelf))
             with open(self._modelf, 'wb') as f:
@@ -84,7 +84,7 @@ class PwModel(object):
         """
         returns the qth most probable element in the dawg.
         """
-        return heapq.nlargest(q+2, self._T.iteritems())[-1]
+        return heapq.nlargest(q+2, self._T.items())[-1]
     
     def get(self, pw):
         return self.prob(pw)
@@ -179,7 +179,7 @@ class NGramPw(PwModel):
     def sum_freq(self, pre):
         if not isinstance(pre, unicode):
             pre = unicode(pre)
-        return float(sum(v for k,v in self._T.iteritems(pre)))
+        return float(sum(v for k,v in self._T.items(pre)))
 
     def cprob(self, c, history):
         """
@@ -201,8 +201,8 @@ class NGramPw(PwModel):
                     n = self.sum_freq(history+c)
                 else:
                     n = self._T.get(history+c, 0.0)
-            except UnicodeDecodeError, e:
-                print "ERROR:", repr(history), e
+            except UnicodeDecodeError as e:
+                print("ERROR:", repr(history), e)
                 raise e
             history = history[1:]
 
@@ -235,8 +235,8 @@ class NGramPw(PwModel):
         try:
             return helper.prod(self.cprob(pw[i], pw[:i])
                                for i in xrange(1, len(pw)))
-        except Exception, e:
-            print repr(pw)
+        except Exception as e:
+            print(repr(pw))
             raise e
 
 
@@ -282,5 +282,5 @@ if __name__ == "__main__":
         if sys.argv[1] == '-createHpw':
             pwf = sys.argv[2]
             pwf = HistPw(pwf, freshall=True)
-            print pwf
-            print pwf.prob('password12')
+            print(pwf)
+            print(pwf.prob('password12'))

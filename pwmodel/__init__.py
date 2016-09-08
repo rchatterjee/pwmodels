@@ -1,3 +1,3 @@
 from .models import NGramPw, PcfgPw, HistPw
-import helper
+from . import helper
 
