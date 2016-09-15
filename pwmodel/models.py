@@ -4,13 +4,17 @@ import dawg
 from collections import defaultdict
 import re
 import heapq
+from fast_fuzzysearch import fast_fuzzysearch
 
 def create_model(modelfunc, fname='', listw=[], outfname=''):
     """:modelfunc: is a function that takes a word and returns its
     splits.  for ngram model this function returns all the ngrams of a
-    word, for PCFG it will return te split of the password. So, it
-    takes a string and returns a list of strings
-
+    word, for PCFG it will return te split of the password. 
+    @modelfunc: func: string -> [list of strings]
+    @fname: name of the file to read from
+    @listw: list of passwords. Used passwords from both the files and 
+            listw if provided. 
+    @outfname: the file to write down the model.
     """
     pws = []
     if fname:
@@ -70,8 +74,10 @@ class PwModel(object):
             if not os.path.exists(os.path.dirname(self._modelf)):
                 os.makedirs(os.path.dirname(self._modelf))
             with open(self._modelf, 'wb') as f:
-                self._T = create_model(fname=pwfilename, outfname=self._modelf,
-                                       modelfunc=kwargs.get('modelfunc', self.modelfunc))
+                self._T = create_model(
+                    fname=pwfilename, outfname=self._modelf,
+                    modelfunc=kwargs.get('modelfunc', self.modelfunc)
+                )
 
     def modelfunc(self, w):
         raise Exception("Not implemented")
@@ -244,14 +250,21 @@ class NGramPw(PwModel):
 
 class HistPw(PwModel):
     """
-    Creates a histograms frmo the given file. 
+    Creates a histograms from the given file. 
     Just converts the password file into  a .dawg  file.
     """
-    def __init__(self, pwfilename, **kwargs): 
+    def __init__(self, pwfilename, fuzzysearch=False, **kwargs): 
         kwargs['modelfunc'] = lambda x: [x]
         kwargs['modelname'] = 'histogram'
         super(HistPw, self).__init__(pwfilename=pwfilename, **kwargs)
         self.pwfilename = pwfilename
+        if fuzzysearch:
+            self.ffs = fast_fuzzysearch(self._T.keys(), ed=2)
+        else:
+            self.ffs = None
+
+    def similarpws(self, pw, ed=2):
+        return self.ffs.query(pw, ed)
 
     def probsum(self, pws):
         """Sum of probs of all passwords in @pws."""

@@ -1,18 +1,17 @@
 #!/usr/bin/python
 
-from distutils.core import setup
+from setuptools import setup
 
 setup(
     name='pwmodels',
-    version='1.0',
+    version='0.1',
     description='A simple password model generating tool',
-    long_description="""This module creates different useful password models, such as ngram
-    model or PCFG mdoel. """,
+    long_description="This module creates different useful password models, such as ngram model or PCFG mdoel.",
 
     url="https://github.com/rchatterjee/pwmodels.git",
     author="Rahul Chatterjee",
     author_email="rahul@cs.cornell.edu",
-    license="Apache",
+    license="MIT",
 
     classifiers=[
         # How mature is this project? Common values are
@@ -26,13 +25,12 @@ setup(
         'Topic :: Password Modeling',
         
         # Pick your license as you wish (should match "license" above)
-        'License :: Apache',
+        'License :: MIT',
         
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
         'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
     ],
 
     keywords="password model ngram pcfg cracking",

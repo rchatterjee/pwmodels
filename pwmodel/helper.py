@@ -226,7 +226,10 @@ def open_(filename, mode='rb'):
         f = tarfile.open(filename, mode=mode, encoding='utf-8')
     elif type_ == "bz2": # Not sure why it is here
         # read in text mode
-        f = bz2.open(filename, 'rt', encoding='utf-8')
+        try:
+            f = bz2.open(filename, 'rt', encoding='utf-8')
+        except AttributeError:
+            f = bz2.BZ2File(filename, mode)
     else:
         f = open(filename, encoding='utf-8', mode=mode);
     return f;
@@ -260,17 +263,22 @@ def get_line(file_object, limit=-1, pw_filter=lambda x: True, errors='replace'):
         # if not m:
         #     warning ("REGEX FAIL: ", l)
         # c, w = m.groups()
+        try:
+            l = l.decode('utf-8', errors='ignore')
+        except UnicodeDecodeError:
+            print(repr(l))
+            continue
         c, w = l.rstrip('\n').lstrip().split(' ', 1)
         c = int(c)
         w = w.replace('\x00', '\\x00')
-        # try:
-        #     # w = w.decode('utf-8', errors='replace') # Fuck unicode, only printable allowed
-        #     w = w.encode('ascii', errors=errors)
-        # except UnicodeEncodeError as e:
-        #     # try with latin1
-        #     warning("Error in decoding: ({} {}). Line: {}. Ignoring!"\
-        #             .format(w, c, l))
-        #     continue
+        try:
+            # w = w.decode('utf-8', errors='replace') # Fuck unicode, only printable allowed
+            w = w.encode('ascii', errors=errors)
+        except (UnicodeEncodeError, UnicodeDecodeError) as e:
+            # try with latin1
+            warning("Error in decoding: ({} {}). Line: {}. Ignoring!"\
+                    .format(w, c, l))
+            continue
         if w and pw_filter(w) and c>0:
             i += 1
             yield w, c
