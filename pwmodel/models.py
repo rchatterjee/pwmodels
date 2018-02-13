@@ -4,7 +4,7 @@ import dawg
 from collections import defaultdict
 import re
 import heapq
-from fast_fuzzysearch import fast_fuzzysearch
+from .fast_fuzzysearch import fast_fuzzysearch
 
 def create_model(modelfunc, fname='', listw=[], outfname=''):
     """:modelfunc: is a function that takes a word and returns its
@@ -28,7 +28,7 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
         for ng in modelfunc(pw):
             big_dict[ng] += c
         if len(big_dict)%100000 == 0:
-            print ("Dictionary size: {}".format(len(big_dict)))
+            print(("Dictionary size: {}".format(len(big_dict))))
         total_f += c
         total_e += 1
     big_dict['__TOTAL__'] = total_e
@@ -50,7 +50,7 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
 
 
 def read_dawg(fname):
-    print("reading {fname}".format(fname=fname))
+    print(("reading {fname}".format(fname=fname)))
     return dawg.IntCompletionDAWG(fname).load(fname)
 
 
@@ -68,9 +68,9 @@ class PwModel(object):
         try:
             self._T = read_dawg(self._modelf)
         except IOError:
-            print("I could not find the file ({}).\nHang on I "\
+            print(("I could not find the file ({}).\nHang on I "\
                 "am creating the {} model for you!"\
-                .format(self._modelf, self.modelname))
+                .format(self._modelf, self.modelname)))
             if not os.path.exists(os.path.dirname(self._modelf)):
                 os.makedirs(os.path.dirname(self._modelf))
             with open(self._modelf, 'wb') as f:
@@ -90,7 +90,7 @@ class PwModel(object):
         """
         returns the qth most probable element in the dawg.
         """
-        return heapq.nlargest(q+2, self._T.items())[-1]
+        return heapq.nlargest(q+2, list(self._T.items()))[-1]
     
     def get(self, pw):
         return self.prob(pw)
@@ -98,6 +98,8 @@ class PwModel(object):
     def __str__(self):
         return 'Pwmodel<{}-{}>'.format(self.modelname, self._leak)
 
+    def leakname(self):
+        return self._leak
 ################################################################################
 MIN_PROB = 1e-10
 
@@ -146,7 +148,7 @@ class PcfgPw(PwModel):
         l = len(tokens)
         assert l % 2 == 0, "Expecting even number of tokens!. got {}".format(tokens)
 
-        p = float(self._T.get(S, 0.0))/sum(v for k,v in self._T.items(u'__S__'))
+        p = float(self._T.get(S, 0.0))/sum(v for k,v in self._T.items('__S__'))
         for i, t in enumerate(tokens):
             f = self._T.get(t, 0.0)
             if f==0:
@@ -183,8 +185,8 @@ class NGramPw(PwModel):
 
     @helper.memoized
     def sum_freq(self, pre):
-        if not isinstance(pre, unicode):
-            pre = unicode(pre)
+        if not isinstance(pre, str):
+            pre = str(pre)
         return float(sum(v for k,v in self._T.items(pre)))
 
     def cprob(self, c, history):
@@ -197,8 +199,8 @@ class NGramPw(PwModel):
         hist = history[:]
         if len(history)>=self._n:
             history = history[-(self._n-1):]
-        if not isinstance(history, unicode):
-            history = unicode(history)
+        if not isinstance(history, str):
+            history = str(history)
         d = 0.0
         while (d==0 or n==0) and len(history)>=1:
             try:
@@ -208,7 +210,7 @@ class NGramPw(PwModel):
                 else:
                     n = self._T.get(history+c, 0.0)
             except UnicodeDecodeError as e:
-                print("ERROR:", repr(history), e)
+                print(("ERROR:", repr(history), e))
                 raise e
             history = history[1:]
 
@@ -231,7 +233,7 @@ class NGramPw(PwModel):
             return [word]
         
         return [word[i:i+n]
-                for i in xrange(0, len(word)-n+1)]
+                for i in range(0, len(word)-n+1)]
 
     @helper.memoized
     def prob(self, pw):
@@ -240,9 +242,9 @@ class NGramPw(PwModel):
         pw = helper.START + pw # + helper.END
         try:
             return helper.prod(self.cprob(pw[i], pw[:i])
-                               for i in xrange(1, len(pw)))
+                               for i in range(1, len(pw)))
         except Exception as e:
-            print(repr(pw))
+            print((repr(pw)))
             raise e
 
 
@@ -259,7 +261,7 @@ class HistPw(PwModel):
         super(HistPw, self).__init__(pwfilename=pwfilename, **kwargs)
         self.pwfilename = pwfilename
         if fuzzysearch:
-            self.ffs = fast_fuzzysearch(self._T.keys(), ed=2)
+            self.ffs = fast_fuzzysearch(list(self._T.keys()), ed=2)
         else:
             self.ffs = None
 
@@ -296,4 +298,4 @@ if __name__ == "__main__":
             pwf = sys.argv[2]
             pwf = HistPw(pwf, freshall=True)
             print(pwf)
-            print(pwf.prob('password12'))
+            print((pwf.prob('password12')))

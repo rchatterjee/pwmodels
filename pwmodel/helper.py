@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from __future__ import print_function
+
 import sys, os
 import bz2
 import re
@@ -17,8 +17,8 @@ sys.path.append(BASE_DIR)
 MAX_INT = 2**64-1
 DEBUG = True
 
-START = u'\x01' # chr(0x01)
-END = u'\x02' # chr(0x02)
+START = '\x01' # chr(0x01)
+END = '\x02' # chr(0x02)
 
 import os
 
@@ -198,7 +198,7 @@ def MILLION(n):
 
 def sort_dict(D):
     # sort the dictionary by keys and returns a tuple list
-    return sorted(D.items(), key=operator.itemgetter(1))
+    return sorted(list(D.items()), key=operator.itemgetter(1))
 
 # returns the type of file.
 def file_type(filename):
@@ -210,7 +210,7 @@ def file_type(filename):
     max_len = max(len(x) for x in magic_dict)
     with open(filename, 'rb') as f:
         file_start = f.read(max_len)
-    for magic, filetype in magic_dict.items():
+    for magic, filetype in list(magic_dict.items()):
         if file_start.startswith(magic):
             return filetype
     return "no match"

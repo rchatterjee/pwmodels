@@ -1,8 +1,10 @@
-# pwmodels
-Password research often requires modelling password distributions from a password leak. (I have to rewrite similar code for at least four times for different projects.) Hence, this module!
+# Pwmodels  
+Password research often requires modelling password distributions from a
+password leak. (I have to rewrite similar code for at least four times for
+different projects.) Hence, this module!
 
-In this module I plan to add those models, such as n-gram and PCFG.
-In current version it supports, 
+In this module I plan to add different password models, such as n-gram and PCFG.
+In current version it supports,
 * `n`-gram or Markovian password model 
 * [Weir et al. PCFG](http://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=5207658), and 
 * simple histogram of the passwords.

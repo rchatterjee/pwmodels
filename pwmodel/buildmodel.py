@@ -2,7 +2,7 @@ from collections import defaultdict
 import common_func as helper
 import dawg
 
-import models
+from . import models
 
 MIN_PROB = 1e-6
 
@@ -22,7 +22,7 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
     big_dict = defaultdict(int)
     for pw, c in join_iterators(pws, listw):
         for ng in modelfunc(pw):
-            big_dict[unicode(ng)] += c
+            big_dict[str(ng)] += c
     big_dict['__TOTAL__'] = sum(big_dict.values())
     nDawg= dawg.IntCompletionDAWG(big_dict)
     if not outfname:
@@ -61,6 +61,6 @@ if __name__ == "__main__":
     w = 'password@123'
     T = create_model(fname=sys.argv[1], listw=[], outfname='',
                  modelfunc=models.pcfgtokensofw)
-    print prob(T, w, modelfunc=models.pcfgtokensofw)
+    print(prob(T, w, modelfunc=models.pcfgtokensofw))
 
 

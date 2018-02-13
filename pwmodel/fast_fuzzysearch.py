@@ -7,33 +7,35 @@ import itertools
 
 
 def fast_fuzzysearch(words, ed):
-    if ed==1:
+    if ed == 1:
         return Fast1FuzzySearch(words)
-    elif ed==2:
+    elif ed == 2:
         return Fast2FuzzySearch(words)
     else:
         raise ValueError("Currently only supports edit distance up to 2")
+
 
 class Fast2FuzzySearch(object):
     """
     Fuzzy sttring matching for arbitrary edit distance. (ed<=4) is useful.
     After that distance is faster. 
     """
-    _ed=2
+    _ed = 2
+
     def __init__(self, words):
         self.ffs = {
             1: Fast1FuzzySearch(words)
         }
-        modified_words = zip(*[
+        modified_words = list(zip(*[
             #    wL          wR           rmL     rmF
             (w[:len(w)/2], w[len(w)/2:], w[:-1], w[1:])
             for w in words
-        ])
+        ]))
         self.ffs[2] = [Fast1FuzzySearch(ws) for ws in modified_words]
 
     def query(self, w, ed=2):
         assert ed<=self._ed
-        w = unicode(w)
+        w = str(w)
         n = len(w)
         res_iter_list = []
         if ed<=1:
@@ -94,10 +96,10 @@ class Fast1FuzzySearch(object):
         return norm_dawg, rev_dawg
 
     def words_with_prefix(self, prefix):
-        return self._L.iterkeys(unicode(prefix))
+        return self._L.iterkeys(str(prefix))
     
     def words_with_suffix(self, suffix):
-        return (w[::-1] for w in self._R.iterkeys(unicode(suffix[::-1])))
+        return (w[::-1] for w in self._R.iterkeys(str(suffix[::-1])))
 
     def query(self, w, ed=1): # Can only handle ed=1
         """
@@ -106,7 +108,7 @@ class Fast1FuzzySearch(object):
         assert ed<=self._ed
         if ed==0:
             return [w] if w in self._L else ['']
-        w = unicode(w)
+        w = str(w)
         n = len(w)
         prefix, suffix = w[:n/2], w[n/2:][::-1]
         options_w_prefix = self._L.keys(prefix)
@@ -114,7 +116,7 @@ class Fast1FuzzySearch(object):
         return [
             _w
             for _w in set(itertools.chain(options_w_prefix, options_w_suffix))
-            if abs(len(_w)-len(w))<=1 and distance(unicode(_w), unicode(w))<=1
+            if abs(len(_w)-len(w))<=1 and distance(str(_w), str(w))<=1
         ]
 
 
@@ -125,7 +127,7 @@ def test_FastFuzzySearch():
     import numpy as np
     fname = os.path.expanduser('~/passwords/rockyou-withcount.txt.bz2')
     pws = list(set(
-        unicode(pw)
+        str(pw)
         for pw,f in helper.get_line(helper.open_(fname), lim=10000)
         if len(pw)>5
     ))
@@ -138,7 +140,7 @@ def test_FastFuzzySearch():
     for ed in eds:
         s = time.time()
         ffs = Fast2FuzzySearch(pws)
-        print "Creation time: {} microsec".format(ed, 1e6*(time.time()-s))
+        print(("Creation time: {} microsec".format(ed, 1e6*(time.time()-s))))
         for id_ in idxs:
             s = time.time()
             res1 = set(pw for pw in pws if distance(pw, pws[id_])<=ed)
@@ -149,7 +151,7 @@ def test_FastFuzzySearch():
             # print "FastFuzzy (ed={}) time: {:.3f} ms".format(ed, 1000*(time.time()-e))
             fastt.append(1000*(time.time()-e))
             assert res1 == res2
-    print "Naive approach:"
-    print "Mean: {}\tstd:{}\n".format(np.mean(normalt), np.std(normalt))
-    print "Fast string search approach:"
-    print "Mean: {}\tstd:{}\n".format(np.mean(fastt), np.std(fastt))
+    print("Naive approach:")
+    print("Mean: {}\tstd:{}\n".format(np.mean(normalt), np.std(normalt)))
+    print("Fast string search approach:")
+    print("Mean: {}\tstd:{}\n".format(np.mean(fastt), np.std(fastt)))

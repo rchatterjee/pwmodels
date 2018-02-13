@@ -18,10 +18,10 @@ class Passwords(object):
     def create_data_structure(self, pass_file):
         passwords = {}
         for w,c in helper.open_get_line(pass_file):
-            passwords[unicode(w)] = c
-        self.T = marisa_trie.Trie(passwords.keys())
+            passwords[str(w)] = c
+        self.T = marisa_trie.Trie(list(passwords.keys()))
         self.freq_list = [0 for _ in passwords]
-        for k in self.T.iterkeys():
+        for k in self.T.keys():
             self.freq_list[self.T.key_id(k)] = passwords[k]
         with open(self.e_pass_file_trie, 'wb') as f:
             self.T.write(f)
@@ -64,10 +64,10 @@ import unittest
 class TestPasswords(unittest.TestCase):
     def test_pw2freq(self):
         passwords = Passwords(os.path.expanduser('~/passwords/rockyou-withcount.txt.bz2'))
-        for pw, f in {'michelle': 12714, 'george': 4749, 
+        for pw, f in list({'michelle': 12714, 'george': 4749, 
                       'familia': 1975, 'honeybunny': 242, 
-                      'asdfasdf2wg': 0, '  234  adsf': 0}.items():
-            pw = unicode(pw)
+                      'asdfasdf2wg': 0, '  234  adsf': 0}.items()):
+            pw = str(pw)
             self.assertEqual(passwords.pw2freq(pw), f, "Frequency mismatch"\
                              " for {}, expected {}, got {}".format(pw, f, passwords.pw2freq(pw)))
     def test_getallgroups(self):
