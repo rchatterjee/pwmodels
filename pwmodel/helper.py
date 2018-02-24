@@ -219,25 +219,29 @@ def file_type(filename, param='rb'):
 
 def open_(filename, mode='rb'):
     type_ = file_type(filename, mode)
+    errors = 'ignore' if 't' in mode else None
     if type_ == "bz2":
-        f = bz2.open(filename, mode, errors='ignore')
+        f = bz2.open(filename, mode, errors=errors)
     elif type_ == "gz":
-        f = gzip.open(filename, mode, errors='ignore')
+        f = gzip.open(filename, mode, errors=errors)
     else:
         f = open(filename, mode)
     return f
 
 
 def load_dawg(f, t=dawg.IntDAWG):
+    if not f.endswith('.gz'):
+        if not os.path.exists(f):
+            f += '.gz'
     T = t()
-    T.read(open_(f, 'wb'))
+    T.read(open_(f, 'rb'))
     return T
 
 
 def save_dawg(T, fname):
     if not fname.endswith('gz'):
         fname = fname + '.gz'
-    with gzip.open(fname, 'w') as f:
+    with gzip.open(fname, 'wb') as f:
         T.write(f)
 
 

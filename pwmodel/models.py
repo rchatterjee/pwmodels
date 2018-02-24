@@ -3,7 +3,6 @@ import os
 from collections import defaultdict
 import operator
 import dawg
-import gzip
 
 from . import helper
 from .fast_fuzzysearch import fast_fuzzysearch
@@ -12,11 +11,11 @@ from .fast_fuzzysearch import fast_fuzzysearch
 def create_model(modelfunc, fname='', listw=[], outfname=''):
     """:modelfunc: is a function that takes a word and returns its
     splits.  for ngram model this function returns all the ngrams of a
-    word, for PCFG it will return te split of the password. 
+    word, for PCFG it will return te split of the password.
     @modelfunc: func: string -> [list of strings]
     @fname: name of the file to read from
-    @listw: list of passwords. Used passwords from both the files and 
-            listw if provided. 
+    @listw: list of passwords. Used passwords from both the files and
+            listw if provided.
     @outfname: the file to write down the model.
     """
     pws = []
@@ -41,9 +40,9 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
 
     nDawg = dawg.IntCompletionDAWG(big_dict)
     if not outfname:
-        outfname = 'tmpmodel.dawg.gzip'
-    elif not outfname.endswith('.gzip'):
-        outfname += '.gzip'
+        outfname = 'tmpmodel.dawg.gz'
+    elif not outfname.endswith('.gz'):
+        outfname += '.gz'
     helper.save_dawg(nDawg, outfname)
     return nDawg
 
@@ -67,7 +66,7 @@ class PwModel(object):
         self._leak = os.path.basename(pwfilename).split('-')[0]
         freshall = kwargs.get('freshal', False)
         self.modelname = kwargs.get('modelname', 'ngram-0')
-        self._modelf = '{}/data/{}-{}.dawg' \
+        self._modelf = '{}/data/{}-{}.dawg.gz' \
             .format(os.path.dirname(os.path.abspath(__file__)),
                     self.modelname,
                     self._leak)
@@ -75,10 +74,10 @@ class PwModel(object):
             os.remove(self._modelf)
         try:
             self._T = read_dawg(self._modelf)
-        except IOError:
-            print(("I could not find the file ({}).\nHang on I " \
-                   "am creating the {} model for you!" \
-                   .format(self._modelf, self.modelname)))
+        except IOError as ex:
+            print(("I could not find the file ({}).\nHang on I "
+                   "am creating the {} model for you!\nex={}"
+                   .format(self._modelf, self.modelname, ex)))
             if not os.path.exists(os.path.dirname(self._modelf)):
                 os.makedirs(os.path.dirname(self._modelf))
             with open(self._modelf, 'wb') as f:
@@ -89,7 +88,6 @@ class PwModel(object):
 
     def modelfunc(self, w):
         raise Exception("Not implemented")
-        return [w]
 
     def prob(self, word):
         return -1
