@@ -1,4 +1,4 @@
-# Pwmodels  
+# Pwmodels [![Build Status](https://travis-ci.org/rchatterjee/pwmodels.svg?branch=master)](https://travis-ci.org/rchatterjee/pwmodels) 
 Password research often requires modelling password distributions from a
 password leak. (I have to rewrite similar code for at least four times for
 different projects.) Hence, this module!
@@ -25,6 +25,10 @@ print pwm.prob('passwords123')
 1.0.0
 
 ## TODO
-* Add a function to enable the models to churn out passwords in decreasing order of their probability
-* Add better pcfg model, especially updated with keyboard sequence, and repeating characters, more natural way of spliting the password than just based on continuous sequence of letters, digits and symbols. 
-* `n`-gram model is pretty slow now, because it has to comppute the sum of frequency of all the passwords that start with `START` (which is all). 
+* Add a function to enable the models to churn out passwords in decreasing order
+  of their probability
+* Add better pcfg model, especially updated with keyboard sequence, and
+  repeating characters, more natural way of spliting the password than just
+  based on continuous sequence of letters, digits and symbols.
+* `n`-gram model is pretty slow now, because it has to comppute the sum of
+  frequency of all the passwords that start with `START` (which is a lot).

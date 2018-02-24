@@ -1,16 +1,17 @@
-from context import pwmodel as pwm 
-import pytest
 import os
 
+from context import pwmodel as pwm
+
 leak_file = os.path.expanduser('~/passwords/phpbb-withcount.txt.bz2')
+
+
 class TestNgramPw(object):
     def test_ngrampw(self):
         ngpw = pwm.NGramPw(n=4, pwfilename=leak_file)
         for (pw1, pw2) in [('password12', 'assword12'),
                            ('1234567', '123456789'),
                            ('password', 'pasword')]:
-            assert ngpw.prob(pw1)>ngpw.prob(pw2)
-
+            assert ngpw.prob(pw1) > ngpw.prob(pw2)
 
 
 # PCFG probabilties are wrong -- TODO - will fix it later
@@ -21,20 +22,23 @@ class TestModel(object):
         w = 'password12'
         assert pcfgpw.prob(w) > pcfgpw.prob(w[1:])
 
+
 class TestHistPw(object):
     def test_ordering(self):
-        pws = [l for i,l in enumerate(pwm.helper.open_get_line(leak_file)) if i<1000]
+        pws = [l for i, l in enumerate(pwm.helper.open_get_line(leak_file)) if i < 1000]
         hm = pwm.HistPw(leak_file)
         for i, l in enumerate(hm.iterpasswords()):
-            if i>=1000: break
+            if i >= 1000: break
             assert pws[i] == l
 
 
 def test_qth_pw():
     hm = pwm.HistPw(leak_file)
     L = [hm.qth_pw(q)
-         for q in xrange(100, 110, 1)]
-    assert all(x>y for x,y in zip(L, L[1:]))
+         for q in range(100, 120, 1)]
+    print(L)
+    assert all(x[1] >= y[1] for x, y in zip(L, L[1:]))
+
 
 def test_cmp_ngram():
     """
@@ -49,7 +53,7 @@ def test_cmp_ngram():
               "1234567", "rockyou", "12345678", "abc123", "nicole", "daniel",
               "babygirl", "monkey", "lovely", "jessica", "654321", "michael",
               "ashley", "qwerty", "111111", "iloveu", "000000", "michelle",
-              "tigger",  "sunshine", "chocolate", "password1", "soccer", "anthony",
+              "tigger", "sunshine", "chocolate", "password1", "soccer", "anthony",
               "friends", "butterfly", "purple", "angel", "jordan", "liverpool",
               "justin"]
 
@@ -57,6 +61,6 @@ def test_cmp_ngram():
               for m in models]
     # for i in xrange(0, len(pwlist), g):
     #     assert set(pwlist3[i:i+g])==set(pwlist4[i:i+g])==set(pwlist5[i:i+g])
-    print ',\t\t'.join(m.modelname for m in models)
+    print(',\t\t'.join(m.modelname for m in models))
     for pws in zip(*pwlist):
-        print ',\t\t'.join(pws)
+        print(',\t\t'.join(pws))

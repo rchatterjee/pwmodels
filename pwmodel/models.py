@@ -1,10 +1,13 @@
-import os, sys
-from . import helper
-import dawg
-from collections import defaultdict
-import re
 import heapq
+import os
+from collections import defaultdict
+import operator
+import dawg
+import gzip
+
+from . import helper
 from .fast_fuzzysearch import fast_fuzzysearch
+
 
 def create_model(modelfunc, fname='', listw=[], outfname=''):
     """:modelfunc: is a function that takes a word and returns its
@@ -19,26 +22,31 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
     pws = []
     if fname:
         pws = helper.open_get_line(fname, limit=3e6)
+
     def join_iterators(_pws, listw):
         for p in _pws: yield p
         for p in listw: yield p
+
     big_dict = defaultdict(int)
     total_f, total_e = 0, 0
     for pw, c in join_iterators(pws, listw):
         for ng in modelfunc(pw):
             big_dict[ng] += c
-        if len(big_dict)%100000 == 0:
+        if len(big_dict) % 100000 == 0:
             print(("Dictionary size: {}".format(len(big_dict))))
         total_f += c
         total_e += 1
     big_dict['__TOTAL__'] = total_e
     big_dict['__TOTALF__'] = total_f
 
-    nDawg= dawg.IntCompletionDAWG(big_dict)
+    nDawg = dawg.IntCompletionDAWG(big_dict)
     if not outfname:
-        outfname = 'tmpmodel.dawg'
-    nDawg.save(outfname)
+        outfname = 'tmpmodel.dawg.gzip'
+    elif not outfname.endswith('.gzip'):
+        outfname += '.gzip'
+    helper.save_dawg(nDawg, outfname)
     return nDawg
+
 
 # def prob(nDawg, w, modelfunc):
 #     t = float(nDawg.get('__TOTAL__'))
@@ -51,7 +59,7 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
 
 def read_dawg(fname):
     print(("reading {fname}".format(fname=fname)))
-    return dawg.IntCompletionDAWG(fname).load(fname)
+    return helper.load_dawg(fname, dawg.IntCompletionDAWG)
 
 
 class PwModel(object):
@@ -59,18 +67,18 @@ class PwModel(object):
         self._leak = os.path.basename(pwfilename).split('-')[0]
         freshall = kwargs.get('freshal', False)
         self.modelname = kwargs.get('modelname', 'ngram-0')
-        self._modelf = '{}/data/{}-{}.dawg'\
-                   .format(os.path.dirname(os.path.abspath(__file__)),
-                           self.modelname,
-                           self._leak)
+        self._modelf = '{}/data/{}-{}.dawg' \
+            .format(os.path.dirname(os.path.abspath(__file__)),
+                    self.modelname,
+                    self._leak)
         if freshall:
             os.remove(self._modelf)
         try:
             self._T = read_dawg(self._modelf)
         except IOError:
-            print(("I could not find the file ({}).\nHang on I "\
-                "am creating the {} model for you!"\
-                .format(self._modelf, self.modelname)))
+            print(("I could not find the file ({}).\nHang on I " \
+                   "am creating the {} model for you!" \
+                   .format(self._modelf, self.modelname)))
             if not os.path.exists(os.path.dirname(self._modelf)):
                 os.makedirs(os.path.dirname(self._modelf))
             with open(self._modelf, 'wb') as f:
@@ -82,7 +90,7 @@ class PwModel(object):
     def modelfunc(self, w):
         raise Exception("Not implemented")
         return [w]
-    
+
     def prob(self, word):
         return -1
 
@@ -90,8 +98,9 @@ class PwModel(object):
         """
         returns the qth most probable element in the dawg.
         """
-        return heapq.nlargest(q+2, list(self._T.items()))[-1]
-    
+        return heapq.nlargest(q + 2, self._T.items(),
+                              key=operator.itemgetter(1))[-1]
+
     def get(self, pw):
         return self.prob(pw)
 
@@ -100,12 +109,16 @@ class PwModel(object):
 
     def leakname(self):
         return self._leak
+
+
 ################################################################################
 MIN_PROB = 1e-10
+
 
 class PcfgPw(PwModel):
     """Creates a pcfg model from the password in @pwfilename. 
     """
+
     def __init__(self, pwfilename, **kwargs):
         kwargs['modelfunc'] = self.pcfgtokensofw
         kwargs['modelname'] = 'weir-pcfg'
@@ -131,8 +144,8 @@ class PcfgPw(PwModel):
         return P[nonT -> tok], 
         e.g., P[ W3 -> 'abc']
         """
-        
-        p = self._T.get(tok, 0)/float(self._T.get(nonT, 1))
+
+        p = self._T.get(tok, 0) / float(self._T.get(nonT, 1))
         if not p:
             p = MIN_PROB
         return p
@@ -148,17 +161,18 @@ class PcfgPw(PwModel):
         l = len(tokens)
         assert l % 2 == 0, "Expecting even number of tokens!. got {}".format(tokens)
 
-        p = float(self._T.get(S, 0.0))/sum(v for k,v in self._T.items('__S__'))
+        p = float(self._T.get(S, 0.0)) / sum(v for k, v in self._T.items('__S__'))
         for i, t in enumerate(tokens):
             f = self._T.get(t, 0.0)
-            if f==0:
+            if f == 0:
                 return 0.0
-            if i<l/2:
+            if i < l / 2:
                 p /= f
             else:
                 p *= f
-            # print pw, p, t, self._T.get(t)
+                # print pw, p, t, self._T.get(t)
         return p
+
 
 ################################################################################
 
@@ -187,7 +201,7 @@ class NGramPw(PwModel):
     def sum_freq(self, pre):
         if not isinstance(pre, str):
             pre = str(pre)
-        return float(sum(v for k,v in self._T.items(pre)))
+        return float(sum(v for k, v in self._T.items(pre)))
 
     def cprob(self, c, history):
         """
@@ -197,49 +211,48 @@ class NGramPw(PwModel):
         returns P[c | history]
         """
         hist = history[:]
-        if len(history)>=self._n:
-            history = history[-(self._n-1):]
+        if len(history) >= self._n:
+            history = history[-(self._n - 1):]
         if not isinstance(history, str):
             history = str(history)
         d = 0.0
-        while (d==0 or n==0) and len(history)>=1:
+        while (d == 0 or n == 0) and len(history) >= 1:
             try:
                 d = self.sum_freq(history)
-                if len(history)<self._n-1:
-                    n = self.sum_freq(history+c)
+                if len(history) < self._n - 1:
+                    n = self.sum_freq(history + c)
                 else:
-                    n = self._T.get(history+c, 0.0)
+                    n = self._T.get(history + c, 0.0)
             except UnicodeDecodeError as e:
                 print(("ERROR:", repr(history), e))
                 raise e
             history = history[1:]
 
         # TODO - implement backoff
-        assert d!=0, "ERROR: Denominator zero!\n"\
-                   "d={} n={} history={!r} c={!r} ({})"\
-                       .format(d, n, hist, c, self._n)
+        assert d != 0, "ERROR: Denominator zero!\n" \
+                       "d={} n={} history={!r} c={!r} ({})" \
+            .format(d, n, hist, c, self._n)
         # if n==0:
         #     print "Zero n", repr(hist), repr(c)
-                    
 
-        return n/d
-    
+        return n / d
+
     def ngramsofw(self, word):
         """Returns the @n-grams of a word @w
         """
         word = helper.START + word + helper.END
         n = self._n
-        if len(word)<=n:
+        if len(word) <= n:
             return [word]
-        
-        return [word[i:i+n]
-                for i in range(0, len(word)-n+1)]
+
+        return [word[i:i + n]
+                for i in range(0, len(word) - n + 1)]
 
     @helper.memoized
     def prob(self, pw):
-        if len(pw)<self._n:
+        if len(pw) < self._n:
             return 0.0
-        pw = helper.START + pw # + helper.END
+        pw = helper.START + pw  # + helper.END
         try:
             return helper.prod(self.cprob(pw[i], pw[:i])
                                for i in range(1, len(pw)))
@@ -255,13 +268,14 @@ class HistPw(PwModel):
     Creates a histograms from the given file. 
     Just converts the password file into  a .dawg  file.
     """
-    def __init__(self, pwfilename, fuzzysearch=False, **kwargs): 
+
+    def __init__(self, pwfilename, fuzzysearch=False, **kwargs):
         kwargs['modelfunc'] = lambda x: [x]
         kwargs['modelname'] = 'histogram'
         super(HistPw, self).__init__(pwfilename=pwfilename, **kwargs)
         self.pwfilename = pwfilename
         if fuzzysearch:
-            self.ffs = fast_fuzzysearch(list(self._T.keys()), ed=2)
+            self.ffs = fast_fuzzysearch(self._T.keys(), ed=2)
         else:
             self.ffs = None
 
@@ -270,7 +284,7 @@ class HistPw(PwModel):
 
     def probsum(self, pws):
         """Sum of probs of all passwords in @pws."""
-        
+
         return sum(self.prob(pw) for pw in pws)
 
     def prob(self, pw):
@@ -278,22 +292,23 @@ class HistPw(PwModel):
         returns the probabiltiy of pw in the model.
         P[pw] = n(pw)/n(__total__)
         """
-        return float(self._T.get(pw, 0))/self._T['__TOTALF__']
+        return float(self._T.get(pw, 0)) / self._T['__TOTALF__']
 
     def prob_correction(self, f=1):
         """
         Corrects the probability error due to truncating the distribution.
         """
         total = {'rockyou': 32602160}
-        return f*self._T['__TOTALF__']/total.get(self._leak, self._T['__TOTALF__'])
+        return f * self._T['__TOTALF__'] / total.get(self._leak, self._T['__TOTALF__'])
 
     def iterpasswords(self, n=-1):
-        return helper.open_get_line(self.pwfilename, limit=n) 
+        return helper.open_get_line(self.pwfilename, limit=n)
 
 
 if __name__ == "__main__":
     import sys
-    if len(sys.argv)==3:
+
+    if len(sys.argv) == 3:
         if sys.argv[1] == '-createHpw':
             pwf = sys.argv[2]
             pwf = HistPw(pwf, freshall=True)

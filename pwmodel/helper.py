@@ -1,46 +1,42 @@
 #!/usr/bin/python
 
 
-import sys, os
-import bz2
-import re
-import json, string
-#from Crypto.Random import random
-import random, re, itertools
+# from Crypto.Random import random
+import itertools
 import operator
+import os
+import random
+import re
+import string
 import struct
+import sys
 from functools import reduce
-
+import bz2
+import gzip
+import functools
+from math import sqrt
+import dawg
 
 BASE_DIR = os.getcwd()
 sys.path.append(BASE_DIR)
-MAX_INT = 2**64-1
+MAX_INT = 2 ** 64 - 1
 DEBUG = True
 
-START = '\x01' # chr(0x01)
-END = '\x02' # chr(0x02)
+START = '\x01'  # chr(0x01)
+END = '\x02'  # chr(0x02)
 
-import os
-
-from os.path import (expanduser)
-from math import sqrt
-# opens file checking whether it is bz2 compressed or not.
-import tarfile
-
-home = expanduser("~")
+home = os.path.expanduser("~")
 pwd = os.path.dirname(os.path.abspath(__file__))
 ROCKYOU_TOTAL_CNT = 32603388.0
-pw_characters = string.ascii_letters + string.digits+string.punctuation + ' '
+pw_characters = string.ascii_letters + string.digits + string.punctuation + ' '
 
-
-import collections
-import functools
 
 class memoized(object):
     '''Decorator. Caches a function's return value each time it is called.
     If called later with the same arguments, the cached value is returned
     (not reevaluated).
     '''
+
     def __init__(self, func):
         self.func = func
         self.cache = {}
@@ -73,25 +69,26 @@ class memoized(object):
         '''Support instance methods.'''
         return functools.partial(self.__call__, obj)
 
+
 class random:
     @staticmethod
     def randints(s, e, n=1):
         """
         returns n uniform random numbers from [s, e]
         """
-        assert e>=s, "Wrong range: [{}, {})".format(s, e)
+        assert e >= s, "Wrong range: [{}, {})".format(s, e)
         n = max(1, n)
-        arr = [s + a%(e-s) for a in struct.unpack('<%dL'%n, os.urandom(4*n))]
+        arr = [s + a % (e - s) for a in struct.unpack('<%dL' % n, os.urandom(4 * n))]
         return arr
 
     @staticmethod
-    def randint(s,e):
+    def randint(s, e):
         """
         returns one random integer between s and e. Try using @randints in case you need
         multiple random integer. @randints is more efficient
         """
-        return random.randints(s,e,1)[0]
-    
+        return random.randints(s, e, 1)[0]
+
     @staticmethod
     def choice(arr):
         i = random.randint(0, len(arr))
@@ -101,18 +98,18 @@ class random:
     def sample(arr, n, unique=False):
         if unique:
             arr = set(arr)
-            assert len(arr)>n, "Cannot sample uniquely from a small array."
+            assert len(arr) > n, "Cannot sample uniquely from a small array."
             if len(arr) == n:
                 return arr;
-            if n>len(arr)/2:
+            if n > len(arr) / 2:
                 res = list(arr)
-                while len(res)>n:
-                    del res[random.randint(0,len(res))]
+                while len(res) > n:
+                    del res[random.randint(0, len(res))]
             else:
                 res = []
                 arr = list(arr)
-                while len(res)<n:
-                    i = random.randint(0,len(arr))
+                while len(res) < n:
+                    i = random.randint(0, len(arr))
                     res.append(arr[i])
                     del arr[i]
         else:
@@ -125,18 +122,18 @@ def gen_n_random_num(n, MAX_NUM=MAX_INT, unique=True):
     between 0 and @MAX_NUM.
     """
     fmt = "<%dI" % n
-    t =  struct.calcsize(fmt)
-    D = [d%MAX_NUM for d in struct.unpack(fmt, os.urandom(t))]
+    t = struct.calcsize(fmt)
+    D = [d % MAX_NUM for d in struct.unpack(fmt, os.urandom(t))]
     if unique:
         D = set(D)
-        assert MAX_NUM>n, "Cannot have {0} unique integers less than {1}".format(n, MAX_NUM)
-        while len(D)<n:
-            print ("Number of collision: {}. Regenerating!".format(n-len(D)))
-            fmt = "<%dI" % (n-len(D))
-            t =  struct.calcsize(fmt)
+        assert MAX_NUM > n, "Cannot have {0} unique integers less than {1}".format(n, MAX_NUM)
+        while len(D) < n:
+            print("Number of collision: {}. Regenerating!".format(n - len(D)))
+            fmt = "<%dI" % (n - len(D))
+            t = struct.calcsize(fmt)
             extra = struct.unpack(fmt, os.urandom(t))
-            D |= set(d%MAX_NUM for d in extra)
-        D = list(D)        
+            D |= set(d % MAX_NUM for d in extra)
+        D = list(D)
     return D
 
 
@@ -161,8 +158,8 @@ def sample_following_dist(handle_iter, n, totalf):
     A.sort(reverse=True)
     # Uniqueness check, non necessarily required, but not very
     # computationally intensive
-    assert len(A) == n, "Not enough randomnumbers generated"\
-        "Requried {}, generated only {}".format(n, len(A))
+    assert len(A) == n, "Not enough randomnumbers generated" \
+                        "Requried {}, generated only {}".format(n, len(A))
     # if not all(A[i] != A[i-1] for i in range(1,n,1)):
     #     for i in range(1,n,1):
     #         if A[i] == A[i-1]:
@@ -171,21 +168,21 @@ def sample_following_dist(handle_iter, n, totalf):
     sampled = 0
     val = A.pop()
     # print handle_iter
-    for w,f in handle_iter:
-        j += f*multiplier
+    for w, f in handle_iter:
+        j += f * multiplier
         if not A: break
-        while val<j:
+        while val < j:
             sampled += 1
-            if sampled %5000 == 0:
-                print ("Sampled:",sampled)
+            if sampled % 5000 == 0:
+                print("Sampled:", sampled)
             yield (val, w)
             if A:
                 val = A.pop()
             else:
                 break
 
-    print ("# Stopped at:", w, f, j, '\n')
-    while A and val<j:
+    print("# Stopped at:", w, f, j, '\n')
+    while A and val < j:
         yield (val, w)
         if A:
             i, val = A.pop()
@@ -194,19 +191,23 @@ def sample_following_dist(handle_iter, n, totalf):
 
 
 def MILLION(n):
-    return n*10e6
+    return n * 10e6
+
 
 def sort_dict(D):
     # sort the dictionary by keys and returns a tuple list
     return sorted(list(D.items()), key=operator.itemgetter(1))
 
+
 # returns the type of file.
-def file_type(filename):
+def file_type(filename, param='rb'):
     magic_dict = {
         b"\x1f\x8b\x08": "gz",
         b"\x42\x5a\x68": "bz2",
         b"\x50\x4b\x03\x04": "zip"
     }
+    if param.startswith('w'):
+        return filename.split('.')[-1]
     max_len = max(len(x) for x in magic_dict)
     with open(filename, 'rb') as f:
         file_start = f.read(max_len)
@@ -217,86 +218,82 @@ def file_type(filename):
 
 
 def open_(filename, mode='rb'):
-    if mode.startswith('w'):
-        type_ = filename.split('.')[-1]
+    type_ = file_type(filename, mode)
+    if type_ == "bz2":
+        f = bz2.open(filename, mode, errors='ignore')
+    elif type_ == "gz":
+        f = gzip.open(filename, mode, errors='ignore')
     else:
-        type_ = file_type(filename)
+        f = open(filename, mode)
+    return f
 
-    if tarfile.is_tarfile(filename):
-        f = tarfile.open(filename, mode=mode, encoding='utf-8')
-    elif type_ == "bz2": # Not sure why it is here
-        # read in text mode
-        try:
-            f = bz2.open(filename, 'rt', encoding='utf-8')
-        except AttributeError:
-            f = bz2.BZ2File(filename, mode)
-    else:
-        f = open(filename, encoding='utf-8', mode=mode);
-    return f;
+
+def load_dawg(f, t=dawg.IntDAWG):
+    T = t()
+    T.read(open_(f, 'wb'))
+    return T
+
+
+def save_dawg(T, fname):
+    if not fname.endswith('gz'):
+        fname = fname + '.gz'
+    with gzip.open(fname, 'w') as f:
+        T.write(f)
+
 
 def getallgroups(arr, k=-1):
     """
     returns all the subset of @arr of size less than equalto @k
     the return array will be of size \sum_{i=1}^k nCi, n = len(arr)
     """
-    if k<0:
+    if k < 0:
         k = len(arr)
     return itertools.chain.from_iterable(itertools.combinations(set(arr), j)
-                                    for j in range(1,k+1))
-    
+                                         for j in range(1, k + 1))
 
-def is_asciistring(s):
+
+def isascii(s):
     try:
-        s.decode('ascii')
+        s.encode('ascii')
         return True
-    except (UnicodeDecodeError, UnicodeEncodeError) as e:
-        # warning("UnicodeError:", s, str(e))
+    except UnicodeError:
         return False
+
 
 def get_line(file_object, limit=-1, pw_filter=lambda x: True, errors='replace'):
     regex = re.compile(r'\s*([0-9]+) (.*)$')
     i = 0
     for l in file_object:
-        if limit>0 and limit<=i:
+        if limit > 0 and limit <= i:
             break
-        # m = regex.match(l)
-        # if not m:
-        #     warning ("REGEX FAIL: ", l)
-        # c, w = m.groups()
-        try:
-            l = l.decode('utf-8', errors='ignore')
-        except UnicodeDecodeError:
-            print(repr(l))
-            continue
         c, w = l.rstrip('\n').lstrip().split(' ', 1)
         c = int(c)
         w = w.replace('\x00', '\\x00')
-        try:
-            # w = w.decode('utf-8', errors='replace') # Fuck unicode, only printable allowed
-            w = w.encode('ascii', errors=errors)
-        except (UnicodeEncodeError, UnicodeDecodeError) as e:
-            # try with latin1
-            warning("Error in decoding: ({} {}). Line: {}. Ignoring!"\
-                    .format(w, c, l))
-            continue
-        if w and pw_filter(w) and c>0:
+        # if not isascii(w):
+        #     print("Not ascii, ignoring...")
+        #     continue
+        if w and pw_filter(w) and c > 0:
             i += 1
             yield w, c
         else:
             pass
-            #warning ("Filter Failed or malformed string: ", w, c)
+            # warning ("Filter Failed or malformed string: ", w, c)
 
 
 def open_get_line(filename, limit=-1, **kwargs):
-    with open_(filename) as f:
-        for w,c in get_line(f, limit, **kwargs):
+    with open_(filename, 'rt') as f:
+        for w, c in get_line(f, limit, **kwargs):
             yield w, c
+
 
 # TODO - Optimize the tokenization process
 regex = r'([A-Za-z_]+)|([0-9]+)|(\W+)'
-def print_err( *args ):
+
+
+def print_err(*args):
     if DEBUG:
-        sys.stderr.write(' '.join([str(a) for a in args])+'\n')
+        sys.stderr.write(' '.join([str(a) for a in args]) + '\n')
+
 
 def tokens(w):
     T = []
@@ -314,6 +311,7 @@ def whatchar(c):
     else:
         return 'Y'
 
+
 def mean_sd(arr):
     s = sum(arr)
     s2 = sum([x * x for x in arr])
@@ -322,15 +320,19 @@ def mean_sd(arr):
     sd = sqrt(float(s2) / n - m * m)
     return m, sd
 
+
 def prod(arr):
     return reduce(operator.mul, arr, 1)
 
+
 def convert2group(t, totalC):
-    return t + random.randint(0, (MAX_INT-t)/totalC) * totalC
-    
+    return t + random.randint(0, (MAX_INT - t) / totalC) * totalC
+
+
 def warning(*objs):
     if DEBUG:
         print("WARNING: ", *objs, file=sys.stderr)
+
 
 # assumes last element in the array(A) is the sum of all elements
 def getIndex(p, A):
@@ -341,11 +343,12 @@ def getIndex(p, A):
         if p < 0: break
     return i
 
+
 def dp(**kwargs):
-    print (kwargs, file=sys.stderr)
+    print(kwargs, file=sys.stderr)
 
-if __name__ == "__main__":    
-    print(list(getallgroups([1,2,3,4,5,6,7,8,9], 5)))
-    
+
+if __name__ == "__main__":
+    print(list(getallgroups([1, 2, 3, 4, 5, 6, 7, 8, 9], 5)))
+
     # unittest.main()
-

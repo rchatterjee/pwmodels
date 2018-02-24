@@ -1,10 +1,12 @@
 from collections import defaultdict
-import common_func as helper
+
+import helper
 import dawg
 
-from . import models
+import models
 
 MIN_PROB = 1e-6
+
 
 def create_model(modelfunc, fname='', listw=[], outfname=''):
     """:modelfunc: is a function that takes a word and returns its
@@ -16,30 +18,34 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
     pws = []
     if fname:
         pws = helper.open_get_line(fname)
+
     def join_iterators(_pws, listw):
         for p in _pws: yield p
         for p in listw: yield p
+
     big_dict = defaultdict(int)
     for pw, c in join_iterators(pws, listw):
         for ng in modelfunc(pw):
             big_dict[str(ng)] += c
     big_dict['__TOTAL__'] = sum(big_dict.values())
-    nDawg= dawg.IntCompletionDAWG(big_dict)
+    nDawg = dawg.IntCompletionDAWG(big_dict)
     if not outfname:
         outfname = 'tmpmodel.dawg'
     nDawg.save(outfname)
     return nDawg
 
+
 def prob(nDawg, w, modelfunc):
     t = float(nDawg.get('__TOTAL__'))
-    return helper.prod(nDawg.get(ng, MIN_PROB)/t
+    return helper.prod(nDawg.get(ng, MIN_PROB) / t
                        for ng in modelfunc(w))
 
 
 def read_dawg(fname):
-    nDawg= dawg.IntCompletionDAWG(fname)
+    nDawg = dawg.IntCompletionDAWG(fname)
     nDawg.load(fname)
     return nDawg
+
 
 def create_ngram_model(fname='', listw=[], outfname='', n=3):
     """Create a list of ngrams from a file @fname.  NOTE: the file must be
@@ -56,11 +62,11 @@ def create_ngram_model(fname='', listw=[], outfname='', n=3):
     return create_model(fname=fame, listw=listw, outfname=outfname,
                         modelfunc=lambda w: models.ngramsofw(n=3))
 
+
 if __name__ == "__main__":
     import sys
+
     w = 'password@123'
     T = create_model(fname=sys.argv[1], listw=[], outfname='',
-                 modelfunc=models.pcfgtokensofw)
+                     modelfunc=models.pcfgtokensofw)
     print(prob(T, w, modelfunc=models.pcfgtokensofw))
-
-
