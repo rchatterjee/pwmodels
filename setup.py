@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='pwmodels',
-    version='0.1',
+    version='1.0',
     description='A simple password model generating tool',
     long_description="This module creates different useful password models, such as ngram model or PCFG mdoel.",
 
