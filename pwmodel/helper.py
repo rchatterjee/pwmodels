@@ -20,13 +20,13 @@ import dawg
 BASE_DIR = os.getcwd()
 sys.path.append(BASE_DIR)
 MAX_INT = 2 ** 64 - 1
-DEBUG = True
+DEBUG = os.getenv('DEBUG', False)
 
 START = '\x01'  # chr(0x01)
 END = '\x02'  # chr(0x02)
 
 home = os.path.expanduser("~")
-pwd = os.path.dirname(os.path.abspath(__file__))
+thisdir = os.path.dirname(os.path.abspath(__file__))
 ROCKYOU_TOTAL_CNT = 32603388.0
 pw_characters = string.ascii_letters + string.digits + string.punctuation + ' '
 

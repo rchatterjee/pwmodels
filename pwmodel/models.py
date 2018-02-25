@@ -61,15 +61,23 @@ def read_dawg(fname):
     return helper.load_dawg(fname, dawg.IntCompletionDAWG)
 
 
+def get_data_path(fname):
+    data_dir = os.path.join(helper.home, '.pwmodel')
+    if helper.DEBUG:
+        data_dir = os.path.join(helper.thisdir, 'data')
+    if not os.path.exists(data_dir):
+        os.mkdir(data_dir)
+    return os.path.join(data_dir, fname)
+
+
 class PwModel(object):
     def __init__(self, pwfilename=None, **kwargs):
         self._leak = os.path.basename(pwfilename).split('-')[0]
         freshall = kwargs.get('freshal', False)
         self.modelname = kwargs.get('modelname', 'ngram-0')
-        self._modelf = '{}/data/{}-{}.dawg.gz' \
-            .format(os.path.dirname(os.path.abspath(__file__)),
-                    self.modelname,
-                    self._leak)
+        self._modelf = get_data_path(
+            '{}-{}.dawg.gz'.format(self._leak, self.modelname)
+        )
         if freshall:
             os.remove(self._modelf)
         try:
@@ -78,13 +86,10 @@ class PwModel(object):
             print(("I could not find the file ({}).\nHang on I "
                    "am creating the {} model for you!\nex={}"
                    .format(self._modelf, self.modelname, ex)))
-            if not os.path.exists(os.path.dirname(self._modelf)):
-                os.makedirs(os.path.dirname(self._modelf))
-            with open(self._modelf, 'wb') as f:
-                self._T = create_model(
-                    fname=pwfilename, outfname=self._modelf,
-                    modelfunc=kwargs.get('modelfunc', self.modelfunc)
-                )
+        self._T = create_model(
+            fname=pwfilename, outfname=self._modelf,
+            modelfunc=kwargs.get('modelfunc', self.modelfunc)
+        )
 
     def modelfunc(self, w):
         raise Exception("Not implemented")

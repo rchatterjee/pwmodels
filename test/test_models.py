@@ -1,8 +1,8 @@
 import os
 
-from context import pwmodel as pwm
+from .context import pwmodel as pwm
 
-leak_file = os.path.expanduser('~/passwords/phpbb-withcount.txt.bz2')
+leak_file = os.path.join(pwm.helper.thisdir, 'data', 'phpbb-withcount.txt.bz2')
 
 
 class TestNgramPw(object):
