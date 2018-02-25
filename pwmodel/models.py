@@ -86,10 +86,10 @@ class PwModel(object):
             print(("I could not find the file ({}).\nHang on I "
                    "am creating the {} model for you!\nex={}"
                    .format(self._modelf, self.modelname, ex)))
-        self._T = create_model(
-            fname=pwfilename, outfname=self._modelf,
-            modelfunc=kwargs.get('modelfunc', self.modelfunc)
-        )
+            self._T = create_model(
+                fname=pwfilename, outfname=self._modelf,
+                modelfunc=kwargs.get('modelfunc', self.modelfunc)
+            )
 
     def modelfunc(self, w):
         raise Exception("Not implemented")
