@@ -5,6 +5,7 @@ import itertools
 
 import dawg
 from Levenshtein import distance
+from polyleven import levenshtein as lvdistance
 
 
 def fast_fuzzysearch(words, ed):
@@ -29,7 +30,7 @@ class Fast2FuzzySearch(object):
         }
         modified_words = list(zip(*[
             #    wL          wR           rmL     rmF
-            (w[:len(w) / 2], w[len(w) / 2:], w[:-1], w[1:])
+            (w[:len(w) // 2], w[len(w) // 2:], w[:-1], w[1:])
             for w in words
         ]))
         self.ffs[2] = [Fast1FuzzySearch(ws) for ws in modified_words]
@@ -43,16 +44,16 @@ class Fast2FuzzySearch(object):
             return self.ffs[1].query(w, ed)
 
         # 0 error on prefix, 2 no suffix
-        res_iter_list.append(self.ffs[1].words_with_prefix(w[:n / 2]))
+        res_iter_list.append(self.ffs[1].words_with_prefix(w[:n // 2]))
         # 1 error on left 
         res_iter_list.extend(
             self.ffs[1].words_with_prefix(tw)
-            for tw in self.ffs[2][0].query(w[:n / 2])
+            for tw in self.ffs[2][0].query(w[:n // 2])
         )
         # 1 error on right
         res_iter_list.extend(
             self.ffs[1].words_with_suffix(tw)
-            for tw in self.ffs[2][1].query(w[n / 2:])
+            for tw in self.ffs[2][1].query(w[n // 2:])
         )
         # first character deleted or replaced
         res_iter_list.extend(
@@ -65,14 +66,15 @@ class Fast2FuzzySearch(object):
             for tw in self.ffs[2][2].query(w[:-1])
         )
         # 2 error on prefix, 0 on suffix
-        res_iter_list.append(self.ffs[1].words_with_suffix(w[n / 2:]))
+        res_iter_list.append(self.ffs[1].words_with_suffix(w[n // 2:]))
 
         all_options = set(w for iter_ in res_iter_list for w in iter_)
         # print "Len options to explore: {}".format(len(all_options))
         return [
             _w
             for _w in all_options
-            if abs(len(_w) - len(w)) <= self._ed and distance(_w, w) <= self._ed
+            if abs(len(_w) - len(w)) <= self._ed and 
+            lvdistance(_w, w, self._ed) <= self._ed
         ]
 
 
@@ -111,48 +113,15 @@ class Fast1FuzzySearch(object):
             return [w] if w in self._L else ['']
         w = str(w)
         n = len(w)
-        prefix, suffix = w[:n / 2], w[n / 2:][::-1]
+        prefix, suffix = w[:n // 2], w[n // 2:][::-1]
         options_w_prefix = self._L.keys(prefix)
         options_w_suffix = [x[::-1] for x in self._R.iterkeys(suffix)]
         return [
             _w
             for _w in set(itertools.chain(options_w_prefix, options_w_suffix))
-            if abs(len(_w) - len(w)) <= 1 and distance(str(_w), str(w)) <= 1
+            if abs(len(_w) - len(w)) <= 1 and lvdistance(str(_w), str(w), 1) <= 1
         ]
 
 
-def test_FastFuzzySearch():
-    import helper, os
-    import time
-    import random
-    import numpy as np
-    fname = os.path.expanduser('~/passwords/rockyou-withcount.txt.bz2')
-    pws = list(set(
-        str(pw)
-        for pw, f in helper.get_line(helper.open_(fname), lim=10000)
-        if len(pw) > 5
-    ))
-    idxs = [random.randint(0, len(pws)) for _ in range(10)]
-    eds = [0, 1, 2]
-    # print list(ffs.ffs[1].words_with_prefix(tw)
-    #            for tw in ffs.ffs[2][2].query('clover')))
-    # raise AssertionError
-    normalt, fastt = [], []
-    for ed in eds:
-        s = time.time()
-        ffs = Fast2FuzzySearch(pws)
-        print(("Creation time: {} microsec".format(ed, 1e6 * (time.time() - s))))
-        for id_ in idxs:
-            s = time.time()
-            res1 = set(pw for pw in pws if distance(pw, pws[id_]) <= ed)
-            e = time.time()
-            # print "\nNormal computation (ed={}) time: {:.3f} ms".format(ed, 1000*(e-s))
-            normalt.append(1000 * (e - s))
-            res2 = set(ffs.query(pws[id_], ed=ed))
-            # print "FastFuzzy (ed={}) time: {:.3f} ms".format(ed, 1000*(time.time()-e))
-            fastt.append(1000 * (time.time() - e))
-            assert res1 == res2
-    print("Naive approach:")
-    print(("Mean: {}\tstd:{}\n".format(np.mean(normalt), np.std(normalt))))
-    print("Fast string search approach:")
-    print(("Mean: {}\tstd:{}\n".format(np.mean(fastt), np.std(fastt))))
+if __name__ == "__main__":
+    test_FastFuzzySearch()
