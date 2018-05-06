@@ -22,8 +22,8 @@ sys.path.append(BASE_DIR)
 MAX_INT = 2 ** 64 - 1
 DEBUG = os.getenv('DEBUG', False)
 
-START = '\x01'  # chr(0x01)
-END = '\x02'  # chr(0x02)
+START = '\x02'  # chr(0x02)  ascii for STX (start of text)
+END = '\x03'  # chr(0x03) ascii for ETX (end of text)
 
 home = os.path.expanduser("~")
 thisdir = os.path.dirname(os.path.abspath(__file__))
@@ -190,8 +190,26 @@ def sample_following_dist(handle_iter, n, totalf):
             break
 
 
+try:
+    import pyximport; pyximport.install()
+    from _fast import compute_ngrams
+
+    def ngramsofw(word, n):
+        return compute_ngrams(word, n)
+
+except ImportError:
+    def ngramsofw(word, n):
+        """Returns the @n-grams of a word @w
+        """
+        word = START + word + END
+        if len(word) <= n:
+            return [word]
+        return [word[i:i + n]
+                for i in range(0, len(word) - n + 1)]
+
+
 def MILLION(n):
-    return n * 10e6
+    return int(n * 1e6)
 
 
 def sort_dict(D):
@@ -354,5 +372,4 @@ def dp(**kwargs):
 
 if __name__ == "__main__":
     print(list(getallgroups([1, 2, 3, 4, 5, 6, 7, 8, 9], 5)))
-
     # unittest.main()

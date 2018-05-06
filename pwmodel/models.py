@@ -1,8 +1,11 @@
 import heapq
-import os
+import os, sys
+import itertools
 from collections import defaultdict
 import operator
 import dawg
+import functools
+import pathlib
 
 from . import helper
 from .fast_fuzzysearch import fast_fuzzysearch
@@ -11,31 +14,28 @@ from .fast_fuzzysearch import fast_fuzzysearch
 def create_model(modelfunc, fname='', listw=[], outfname=''):
     """:modelfunc: is a function that takes a word and returns its
     splits.  for ngram model this function returns all the ngrams of a
-    word, for PCFG it will return te split of the password.
+    word, for PCFG it will return splits of the password.
     @modelfunc: func: string -> [list of strings]
     @fname: name of the file to read from
     @listw: list of passwords. Used passwords from both the files and
             listw if provided.
     @outfname: the file to write down the model.
     """
+
     pws = []
     if fname:
         pws = helper.open_get_line(fname, limit=3e6)
 
-    def join_iterators(_pws, listw):
-        for p in _pws: yield p
-        for p in listw: yield p
-
     big_dict = defaultdict(int)
     total_f, total_e = 0, 0
-    for pw, c in join_iterators(pws, listw):
+    for pw, c in itertools.chain(pws, listw):
         for ng in modelfunc(pw):
             big_dict[ng] += c
         if len(big_dict) % 100000 == 0:
             print(("Dictionary size: {}".format(len(big_dict))))
         total_f += c
         total_e += 1
-    big_dict['__TOTAL__'] = total_e
+    big_dict['__NPWS__'] = total_e
     big_dict['__TOTALF__'] = total_f
 
     nDawg = dawg.IntCompletionDAWG(big_dict)
@@ -43,17 +43,9 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
         outfname = 'tmpmodel.dawg.gz'
     elif not outfname.endswith('.gz'):
         outfname += '.gz'
+    pathlib.Path(outfname).parent.mkdir(parents=True, exist_ok=True)
     helper.save_dawg(nDawg, outfname)
     return nDawg
-
-
-# def prob(nDawg, w, modelfunc):
-#     t = float(nDawg.get('__TOTAL__'))
-#     print '\n'.join("{} -> {}".format(ng, nDawg.get(ng, MIN_FREQ))
-#                        for ng in modelfunc(w))
-
-#     return helper.prod(nDawg.get(ng, MIN_FREQ)/t
-#                        for ng in modelfunc(w))
 
 
 def read_dawg(fname):
@@ -74,20 +66,27 @@ class PwModel(object):
     def __init__(self, pwfilename=None, **kwargs):
         self._leak = os.path.basename(pwfilename).split('-')[0]
         freshall = kwargs.get('freshal', False)
-        self.modelname = kwargs.get('modelname', 'ngram-0')
+        self.modelname = kwargs.get('modelname', 'ngram-3')
+        if not self._leak:
+            self._leak = kwargs.get('leak', 'tmp')
+            freshall = True
         self._modelf = get_data_path(
             '{}-{}.dawg.gz'.format(self._leak, self.modelname)
         )
         if freshall:
-            os.remove(self._modelf)
+            try:
+                os.remove(self._modelf)
+            except OSError as e:
+                print("File ({!r}) does not exist. ERROR: {}"
+                      .format(self._modelf, e), file=sys.stderr)
         try:
             self._T = read_dawg(self._modelf)
         except IOError as ex:
-            print(("I could not find the file ({}).\nHang on I "
-                   "am creating the {} model for you!\nex={}"
-                   .format(self._modelf, self.modelname, ex)))
+            print(("ex={}\nHang on while I am creating the model {!r}!\n"
+                   .format(ex, self.modelname)))
             self._T = create_model(
-                fname=pwfilename, outfname=self._modelf,
+                fname=pwfilename, listw=kwargs.get('listw', []),
+                outfname=self._modelf,
                 modelfunc=kwargs.get('modelfunc', self.modelfunc)
             )
 
@@ -95,7 +94,7 @@ class PwModel(object):
         raise Exception("Not implemented")
 
     def prob(self, word):
-        return -1
+        raise Exception("Not implemented")
 
     def qth_pw(self, q):
         """
@@ -105,6 +104,7 @@ class PwModel(object):
                               key=operator.itemgetter(1))[-1]
 
     def get(self, pw):
+        """Returns password probability"""
         return self.prob(pw)
 
     def __str__(self):
@@ -193,14 +193,14 @@ class NGramPw(PwModel):
     :param n: an integer (NOTE: you should provide a `n`.  `n` is default to 3)
     """
 
-    def __init__(self, pwfilename, **kwargs):
+    def __init__(self, pwfilename='', **kwargs):
         kwargs['modelfunc'] = self.ngramsofw
         kwargs['n'] = kwargs.get('n', 3)
         kwargs['modelname'] = 'ngram-{}'.format(kwargs['n'])
         self._n = kwargs.get('n', 3)
         super(NGramPw, self).__init__(pwfilename=pwfilename, **kwargs)
 
-    @helper.memoized
+    @functools.lru_cache(maxsize=100000)
     def sum_freq(self, pre):
         if not isinstance(pre, str):
             pre = str(pre)
@@ -218,7 +218,7 @@ class NGramPw(PwModel):
             history = history[-(self._n - 1):]
         if not isinstance(history, str):
             history = str(history)
-        d = 0.0
+        d, n = 0.0, 0
         while (d == 0 or n == 0) and len(history) >= 1:
             try:
                 d = self.sum_freq(history)
@@ -241,17 +241,9 @@ class NGramPw(PwModel):
         return n / d
 
     def ngramsofw(self, word):
-        """Returns the @n-grams of a word @w
-        """
-        word = helper.START + word + helper.END
-        n = self._n
-        if len(word) <= n:
-            return [word]
+        return helper.ngramsofw(word, self._n)
 
-        return [word[i:i + n]
-                for i in range(0, len(word) - n + 1)]
-
-    @helper.memoized
+    @functools.lru_cache(maxsize=100000)
     def prob(self, pw):
         if len(pw) < self._n:
             return 0.0
