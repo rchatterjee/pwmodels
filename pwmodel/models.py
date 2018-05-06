@@ -10,6 +10,9 @@ import pathlib
 from . import helper
 from .fast_fuzzysearch import fast_fuzzysearch
 
+totalf_w = '\x02__TOTALF__\x03'
+npws_w = '\x02__NPWS__\x03'
+reserved_words = {totalf_w, npws_w}
 
 def create_model(modelfunc, fname='', listw=[], outfname=''):
     """:modelfunc: is a function that takes a word and returns its
@@ -35,8 +38,8 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
             print(("Dictionary size: {}".format(len(big_dict))))
         total_f += c
         total_e += 1
-    big_dict['__NPWS__'] = total_e
-    big_dict['__TOTALF__'] = total_f
+    big_dict[npws_w] = total_e
+    big_dict[totalf_w] = total_f
 
     nDawg = dawg.IntCompletionDAWG(big_dict)
     if not outfname:
@@ -243,11 +246,45 @@ class NGramPw(PwModel):
     def ngramsofw(self, word):
         return helper.ngramsofw(word, self._n)
 
+    def _gen_next(self, history):
+        """Generate next character sampled from the distribution of characters next.
+        """
+        if not history:
+            return helper.START
+        history = history[-(self._n-1):]
+        kv = [(k, v) for k, v in self._T.items(history)
+              if k not in reserved_words]
+        total = sum(v for k, v in kv)
+        while total == 0 and len(history) > 0:
+            history = history[1:]
+            kv = [(k, v) for k, v in self._T.items(history) 
+                  if k not in reserved_words]
+            total = sum(v for k, v in kv)
+        assert total > 0, "Sorry there is no n-gram with {!r}".format(history)
+        _, sampled_k = list(helper.sample_following_dist(kv, 1, total))[0]
+        # print(">>>", repr(sampled_k), len(history))
+        return sampled_k[len(history)]
+
+    def sample_pw(self):
+        s = helper.START
+        while s[-1] != helper.END:
+            s += self._gen_next(s)
+        return s[1:-1]
+
+    def generate_pws_in_order(self, alpha, beta):
+        """
+        Generates passwords in order between probability (alpha, beta]
+        """
+        assert alpha < beta
+        states = [(helper.start, 1.0)]
+        pass
+
+
     @functools.lru_cache(maxsize=100000)
     def prob(self, pw):
         if len(pw) < self._n:
             return 0.0
-        pw = helper.START + pw  # + helper.END
+        pw = helper.START + pw + helper.END
         try:
             return helper.prod(self.cprob(pw[i], pw[:i])
                                for i in range(1, len(pw)))
@@ -287,14 +324,14 @@ class HistPw(PwModel):
         returns the probabiltiy of pw in the model.
         P[pw] = n(pw)/n(__total__)
         """
-        return float(self._T.get(pw, 0)) / self._T['__TOTALF__']
+        return float(self._T.get(pw, 0)) / self._T[totalf_w]
 
     def prob_correction(self, f=1):
         """
         Corrects the probability error due to truncating the distribution.
         """
         total = {'rockyou': 32602160}
-        return f * self._T['__TOTALF__'] / total.get(self._leak, self._T['__TOTALF__'])
+        return f * self._T[totalf_w] / total.get(self._leak, self._T[totalf_w])
 
     def iterpasswords(self, n=-1):
         return helper.open_get_line(self.pwfilename, limit=n)
@@ -306,6 +343,10 @@ if __name__ == "__main__":
     if len(sys.argv) == 3:
         if sys.argv[1] == '-createHpw':
             pwf = sys.argv[2]
-            pwf = HistPw(pwf, freshall=True)
-            print(pwf)
-            print((pwf.prob('password12')))
+            pwm = HistPw(pwf, freshall=True)
+            print(pwm)
+            print((pwm.prob('password12')))
+        elif sys.argv[1] == '-ngramGen':
+            pwf = sys.argv[2]
+            pwm = NGramPw(pwfilename=pwf)
+            print(pwm.sample_pw())

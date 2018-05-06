@@ -100,7 +100,7 @@ class random:
             arr = set(arr)
             assert len(arr) > n, "Cannot sample uniquely from a small array."
             if len(arr) == n:
-                return arr;
+                return arr
             if n > len(arr) / 2:
                 res = list(arr)
                 while len(res) > n:
@@ -126,7 +126,8 @@ def gen_n_random_num(n, MAX_NUM=MAX_INT, unique=True):
     D = [d % MAX_NUM for d in struct.unpack(fmt, os.urandom(t))]
     if unique:
         D = set(D)
-        assert MAX_NUM > n, "Cannot have {0} unique integers less than {1}".format(n, MAX_NUM)
+        assert MAX_NUM > n, \
+            "Cannot have {0} unique integers less than {1}".format(n, MAX_NUM)
         while len(D) < n:
             print("Number of collision: {}. Regenerating!".format(n - len(D)))
             fmt = "<%dI" % (n - len(D))
@@ -142,10 +143,13 @@ def sample_following_dist(handle_iter, n, totalf):
     @handle_iter is an iterator that gives (pw,f) @n is the total
     number of samle asked for @totalf is the total number of users,
     which is euqal to sum(f for pw,f in handle_iter)
-    As, handle_iterator is an iterator and can only traverse once, @totalf
-    needs to be supplied to the funciton.
-    
+    As, handle_iterator is an iterator and can only traverse once. 
+
+    @totalf needs to be supplied to the funciton.
+    @handle_iter must be sorted in decreasing order
+
     Returns, an array of @n tuples (id, pw) sampled from @handle_iter.
+
     """
     multiplier = 1.0
     if totalf == 1.0:
@@ -153,7 +157,7 @@ def sample_following_dist(handle_iter, n, totalf):
         # print "WARNING!! I don't except probabilities"
 
     totalf = totalf * multiplier
-    print("# Population Size", totalf)
+    # print("# Population Size", totalf)
     A = gen_n_random_num(n, totalf, unique=False)
     A.sort(reverse=True)
     # Uniqueness check, non necessarily required, but not very
@@ -164,13 +168,11 @@ def sample_following_dist(handle_iter, n, totalf):
     #     for i in range(1,n,1):
     #         if A[i] == A[i-1]:
     #             print i, A[i], A[i-1]
-    j = 0
-    sampled = 0
+    j, sampled = 0, 0
     val = A.pop()
-    # print handle_iter
+    # print(handle_iter)
     for w, f in handle_iter:
         j += f * multiplier
-        if not A: break
         while val < j:
             sampled += 1
             if sampled % 5000 == 0:
@@ -179,9 +181,12 @@ def sample_following_dist(handle_iter, n, totalf):
             if A:
                 val = A.pop()
             else:
+                val = -1
                 break
+        if not A and val == -1:
+            break
 
-    print("# Stopped at:", w, f, j, '\n')
+    # print("# Stopped at:", w, f, j, '\n', file=sys.stderr)
     while A and val < j:
         yield (val, w)
         if A:
