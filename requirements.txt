@@ -1,3 +1,4 @@
 python-levenshtein
 dawg
 git+https://github.com/fujimotos/polyleven
+marisa_trie
