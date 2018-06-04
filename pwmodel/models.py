@@ -6,6 +6,7 @@ import operator
 import dawg
 import functools
 import pathlib
+import json
 
 from . import helper
 from .fast_fuzzysearch import fast_fuzzysearch
@@ -246,6 +247,26 @@ class NGramPw(PwModel):
     def ngramsofw(self, word):
         return helper.ngramsofw(word, self._n)
 
+    def _get_next(self, history):
+        """Get the next set of characters and their probabilities"""
+        if not history:
+            return helper.START
+        history = history[-(self._n-1):]
+        kv = [(k, v) for k, v in self._T.items(history)
+              if k not in reserved_words]
+        total = sum(v for k, v in kv)
+        while total == 0 and len(history) > 0:
+            history = history[1:]
+            kv = [(k, v) for k, v in self._T.items(history) 
+                  if k not in reserved_words]
+            total = sum(v for k, v in kv)
+        assert total > 0, "Sorry there is no n-gram with {!r}".format(history)
+        d = {}
+        for k, v in kv:
+            k = k[len(history)]
+            d[k] = d.get(k, 0) + v/total
+        return d
+        
     def _gen_next(self, history):
         """Generate next character sampled from the distribution of characters next.
         """
@@ -271,13 +292,37 @@ class NGramPw(PwModel):
             s += self._gen_next(s)
         return s[1:-1]
 
-    def generate_pws_in_order(self, alpha, beta):
+    def generate_pws_in_order(self, n, filter_func=None, N_max=1e6):
         """
         Generates passwords in order between probability (alpha, beta]
+        @N_max is the maximum size of the priority queue will be tolerated,
+        so if the size of the queue is bigger than 1.5 * N_max, it will shrink the size to 0.75 * N_max
+        @n is the number of password to generate. 
+        **This function is expensive, and shuold be called only if necessary. Cache its call as much as possible**
         """
-        assert alpha < beta
-        states = [(helper.start, 1.0)]
-        pass
+        # assert alpha < beta, 'alpha={} must be less than beta={}'.format(alpha, beta)
+        states = [(-1.0, helper.START)]
+        p_min = 1e-9 / (n**2)   # max 1 million entries in the heap 
+        ret = []
+        while len(ret) < n:
+            p, s = heapq.heappop(states)
+            if p<0: 
+                p = -p
+            if s[-1] == helper.END:
+                s = s[1:-1]
+                if filter_func is None or filter_func(s):
+                    ret.append((s, p))
+            else:
+                for c, f in self._get_next(s).items():
+                    if f*p < p_min: continue
+                    heapq.heappush(states, (-f*p, s+c))
+            if len(states) > N_max * 3 / 2:
+                print("The size of states={}.  Still need={} pws. Truncating"
+                      .format(len(states), n - len(ret)))
+                states = heapq.nsmallest(int(N_max * 3/4), states)
+                print("Done")
+        return ret
+
 
 
     @functools.lru_cache(maxsize=100000)
@@ -349,4 +394,5 @@ if __name__ == "__main__":
         elif sys.argv[1] == '-ngramGen':
             pwf = sys.argv[2]
             pwm = NGramPw(pwfilename=pwf)
-            print(pwm.sample_pw())
+            # print(pwm.sample_pw())
+            print(json.dumps(pwm.generate_pws_in_order(1000, filter_func=lambda x: len(x)>6), indent=4))
