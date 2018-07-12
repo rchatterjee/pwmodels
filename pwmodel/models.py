@@ -67,7 +67,8 @@ def get_data_path(fname):
 
 
 class PwModel(object):
-    def __init__(self, pwfilename=None, **kwargs):
+    def __init__(self, **kwargs):
+        pwfilename = kwargs.get('pwfilename', '')
         self._leak = os.path.basename(pwfilename).split('-')[0]
         freshall = kwargs.get('freshal', False)
         self.modelname = kwargs.get('modelname', 'ngram-3')
@@ -77,17 +78,23 @@ class PwModel(object):
         self._modelf = get_data_path(
             '{}-{}.dawg.gz'.format(self._leak, self.modelname)
         )
+        self._T = None
+        if kwargs.get('T') != None:
+            self._T = kwargs.get('T')
+            return
         if freshall:
             try:
                 os.remove(self._modelf)
             except OSError as e:
                 print("File ({!r}) does not exist. ERROR: {}"
                       .format(self._modelf, e), file=sys.stderr)
-        try:
-            self._T = read_dawg(self._modelf)
-        except IOError as ex:
-            print(("ex={}\nHang on while I am creating the model {!r}!\n"
-                   .format(ex, self.modelname)))
+        if self._leak != 'tmp':
+            try:
+                self._T = read_dawg(self._modelf)
+            except IOError as ex:
+                print(("ex={}\nHang on while I am creating the model {!r}!\n"
+                       .format(ex, self.modelname)))
+        if self._T is None:
             self._T = create_model(
                 fname=pwfilename, listw=kwargs.get('listw', []),
                 outfname=self._modelf,
@@ -104,7 +111,7 @@ class PwModel(object):
         """
         returns the qth most probable element in the dawg.
         """
-        return heapq.nlargest(q + 2, self._T.items(),
+        return heapq.nlargest(q + 2, self._T.iteritems(),
                               key=operator.itemgetter(1))[-1]
 
     def get(self, pw):
@@ -113,6 +120,12 @@ class PwModel(object):
 
     def __str__(self):
         return 'Pwmodel<{}-{}>'.format(self.modelname, self._leak)
+
+    def npws(self):
+        return self._T[npws_w]
+
+    def totalf(self):
+        return self._T[totalf_w]
 
     def leakname(self):
         return self._leak
@@ -249,6 +262,7 @@ class NGramPw(PwModel):
 
     def _get_next(self, history):
         """Get the next set of characters and their probabilities"""
+        orig_history = history
         if not history:
             return helper.START
         history = history[-(self._n-1):]
@@ -260,7 +274,7 @@ class NGramPw(PwModel):
             kv = [(k, v) for k, v in self._T.items(history) 
                   if k not in reserved_words]
             total = sum(v for k, v in kv)
-        assert total > 0, "Sorry there is no n-gram with {!r}".format(history)
+        assert total > 0, "Sorry there is no n-gram with {!r}".format(orig_history)
         d = {}
         for k, v in kv:
             k = k[len(history)]
@@ -270,6 +284,7 @@ class NGramPw(PwModel):
     def _gen_next(self, history):
         """Generate next character sampled from the distribution of characters next.
         """
+        orig_history = history
         if not history:
             return helper.START
         history = history[-(self._n-1):]
@@ -281,7 +296,7 @@ class NGramPw(PwModel):
             kv = [(k, v) for k, v in self._T.items(history) 
                   if k not in reserved_words]
             total = sum(v for k, v in kv)
-        assert total > 0, "Sorry there is no n-gram with {!r}".format(history)
+        assert total > 0, "Sorry there is no n-gram with {!r}".format(orig_history)
         _, sampled_k = list(helper.sample_following_dist(kv, 1, total))[0]
         # print(">>>", repr(sampled_k), len(history))
         return sampled_k[len(history)]
@@ -304,7 +319,7 @@ class NGramPw(PwModel):
         states = [(-1.0, helper.START)]
         p_min = 1e-9 / (n**2)   # max 1 million entries in the heap 
         ret = []
-        while len(ret) < n:
+        while len(ret) < n and len(states) > 0:
             p, s = heapq.heappop(states)
             if p<0: 
                 p = -p
