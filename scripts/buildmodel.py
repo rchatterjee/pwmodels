@@ -14,7 +14,7 @@ if __name__ == "__main__":
     Usage = "\nUsage: \n$ {} [-hist|-ngram|-pcfg] <pwleak_file.tar.bz2> [<n>]\n" \
             "\nCreate histogram or ngram or pcfg model of the pwleak file." \
             "\nThe final output is stored in a file printed below.\n" \
-            "\n<n> is the 'n' for ngram model.\n" \
+            "\n<n> is the 'n' for ngram model.\n Uses only passwords with length 6 or more" \
         .format(sys.argv[0])
     if len(sys.argv) < 3:
         print(Usage)

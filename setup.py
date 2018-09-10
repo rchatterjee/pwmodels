@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from setuptools import setup
+from Cython.Build import cythonize
 
 setup(
     name='pwmodels',
@@ -36,10 +37,11 @@ setup(
 
     keywords="password model ngram pcfg cracking",
     packages=['pwmodel'],  # find_packages(exclude(['contrib', 'docs', 'tests*'])),
+    ext_modules = cythonize("pwmodel/_fast.pyx"),
     package_dir={'pwmodel': 'pwmodel'},
     package_data={'pwmodel': ['data/*.dawg']},
     install_requires=[
-        'DAWG',
+        'dawg', 'cython'
     ],
     scripts=['scripts/buildmodel.py']
     # data_files=[('pwmodel/data/', ['ngram-0-phpbb.dawg', 'ngram-3-phpbb.dawg', 'ngram-4-phpbb.dawg'])]

@@ -30,6 +30,10 @@ thisdir = os.path.dirname(os.path.abspath(__file__))
 ROCKYOU_TOTAL_CNT = 32603388.0
 pw_characters = string.ascii_letters + string.digits + string.punctuation + ' '
 
+L33T = {v: k for k,v in 
+        [('a', '@'), ('e', '3'), ('H', '#'), ('i', '1'), ('l', '1'),
+        ('o', '0'), ('O', '0'), ('t', '1'), ('w', 'v')]}
+
 
 class memoized(object):
     '''Decorator. Caches a function's return value each time it is called.
@@ -196,22 +200,25 @@ def sample_following_dist(handle_iter, n, totalf):
 
 
 try:
-    import pyximport; pyximport.install()
-    from _fast import compute_ngrams
+    # import pyximport; pyximport.install()
+    from pwmodel._fast import compute_ngrams
 
-    def ngramsofw(word, n):
-        return compute_ngrams(word, n)
+    def ngramsofw(word, n, maxn=0):
+        return compute_ngrams(word, n, maxn)
 
-except ImportError:
-    def ngramsofw(word, n):
+except ImportError as ex:
+    print(ex)
+    exit(0)
+    def ngramsofw(word, n, maxn=0):
         """Returns the @n-grams of a word @w
         """
+        print(">>> SLOW ngram computation")
         word = START + word + END
-        if len(word) <= n:
-            return [word]
-        return [word[i:i + n]
-                for i in range(0, len(word) - n + 1)]
-
+        ngrams = []
+        for ngram_length in range(n, min(len(word), maxn) + 1):
+            for i in range(0, len(word) - ngram_length + 1):
+                ngrams.append(word[i:i + ngram_length])
+        return ngrams
 
 def MILLION(n):
     return int(n * 1e6)
@@ -287,13 +294,14 @@ def isascii(s):
         return False
 
 
+
 def get_line(file_object, limit=-1, pw_filter=lambda x: True, errors='replace'):
     regex = re.compile(r'\s*([0-9]+) (.*)$')
     i = 0
     for l in file_object:
         if limit > 0 and limit <= i:
             break
-        c, w = l.rstrip('\n').lstrip().split(' ', 1)
+        c, w = re.split(r'\s+', l.rstrip('\n').lstrip(), maxsplit=1)
         c = int(c)
         w = w.replace('\x00', '\\x00')
         # if not isascii(w):

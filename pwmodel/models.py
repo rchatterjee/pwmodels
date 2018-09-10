@@ -15,7 +15,8 @@ totalf_w = '\x02__TOTALF__\x03'
 npws_w = '\x02__NPWS__\x03'
 reserved_words = {totalf_w, npws_w}
 
-def create_model(modelfunc, fname='', listw=[], outfname=''):
+def create_model(modelfunc, fname='', listw=[], outfname='',
+                 limit=int(3e6), min_pwlen=6):
     """:modelfunc: is a function that takes a word and returns its
     splits.  for ngram model this function returns all the ngrams of a
     word, for PCFG it will return splits of the password.
@@ -26,19 +27,23 @@ def create_model(modelfunc, fname='', listw=[], outfname=''):
     @outfname: the file to write down the model.
     """
 
+    def length_filter(pw):
+        return len(pw) >= min_pwlen
+
     pws = []
     if fname:
-        pws = helper.open_get_line(fname, limit=3e6)
+        pws = helper.open_get_line(fname, limit=limit, pw_filter=length_filter)
 
     big_dict = defaultdict(int)
     total_f, total_e = 0, 0
     for pw, c in itertools.chain(pws, listw):
         for ng in modelfunc(pw):
             big_dict[ng] += c
-        if len(big_dict) % 100000 == 0:
-            print(("Dictionary size: {}".format(len(big_dict))))
         total_f += c
         total_e += 1
+        if len(big_dict) % 100000 == 0:
+            print(("Dictionary size: {} (Total_freq: {}; Total_pws: {}"\
+                   .format(len(big_dict), total_f, total_e)))
     big_dict[npws_w] = total_e
     big_dict[totalf_w] = total_f
 
@@ -98,7 +103,8 @@ class PwModel(object):
             self._T = create_model(
                 fname=pwfilename, listw=kwargs.get('listw', []),
                 outfname=self._modelf,
-                modelfunc=kwargs.get('modelfunc', self.modelfunc)
+                modelfunc=kwargs.get('modelfunc', self.modelfunc),
+                limit=int(kwargs.get('limit', 3e6))
             )
 
     def modelfunc(self, w):
@@ -213,15 +219,25 @@ class NGramPw(PwModel):
     def __init__(self, pwfilename='', **kwargs):
         kwargs['modelfunc'] = self.ngramsofw
         kwargs['n'] = kwargs.get('n', 3)
-        kwargs['modelname'] = 'ngram-{}'.format(kwargs['n'])
         self._n = kwargs.get('n', 3)
+        kwargs['modelname'] = 'ngram-{}'.format(self._n)
         super(NGramPw, self).__init__(pwfilename=pwfilename, **kwargs)
+        self._leet = self._T.compile_replaces(helper.L33T)
 
     @functools.lru_cache(maxsize=100000)
     def sum_freq(self, pre):
         if not isinstance(pre, str):
             pre = str(pre)
-        return float(sum(v for k, v in self._T.items(pre)))
+        return float(sum(v for k, v in self._T.iteritems(pre)))
+
+    @functools.lru_cache(maxsize=100000)
+    def get_freq(self, x):
+        """get freq of x  with or without L33t transformations """
+        keys = self._T.similar_keys(x, self._leet)
+        if len(keys) > 0:
+            return self._T[keys[0]]
+        else:
+            return 0.0
 
     def cprob(self, c, history):
         """
@@ -236,13 +252,14 @@ class NGramPw(PwModel):
         if not isinstance(history, str):
             history = str(history)
         d, n = 0.0, 0
-        while (d == 0 or n == 0) and len(history) >= 1:
+        while (d == 0.0 or n == 0.0) and len(history) >= 1:
             try:
-                d = self.sum_freq(history)
-                if len(history) < self._n - 1:
-                    n = self.sum_freq(history + c)
-                else:
-                    n = self._T.get(history + c, 0.0)
+                d = self.get_freq(history)
+                n = self.get_freq(history + c)
+                # if len(history) < self._n - 1:
+                #     n = self.sum_freq(history + c)
+                # else:
+                #     n = self._T.get(history + c, 0.0)
             except UnicodeDecodeError as e:
                 print(("ERROR:", repr(history), e))
                 raise e
@@ -255,10 +272,10 @@ class NGramPw(PwModel):
         # if n==0:
         #     print "Zero n", repr(hist), repr(c)
 
-        return n / d
+        return (n + MIN_PROB) / d
 
     def ngramsofw(self, word):
-        return helper.ngramsofw(word, self._n)
+        return helper.ngramsofw(word, 1, self._n)
 
     def _get_next(self, history):
         """Get the next set of characters and their probabilities"""
@@ -311,9 +328,11 @@ class NGramPw(PwModel):
         """
         Generates passwords in order between probability (alpha, beta]
         @N_max is the maximum size of the priority queue will be tolerated,
-        so if the size of the queue is bigger than 1.5 * N_max, it will shrink the size to 0.75 * N_max
+        so if the size of the queue is bigger than 1.5 * N_max, it will shrink 
+        the size to 0.75 * N_max
         @n is the number of password to generate. 
-        **This function is expensive, and shuold be called only if necessary. Cache its call as much as possible**
+        **This function is expensive, and shuold be called only if necessary. 
+        Cache its call as much as possible**
         """
         # assert alpha < beta, 'alpha={} must be less than beta={}'.format(alpha, beta)
         states = [(-1.0, helper.START)]
@@ -338,16 +357,12 @@ class NGramPw(PwModel):
                 print("Done")
         return ret
 
-
-
     @functools.lru_cache(maxsize=100000)
     def prob(self, pw):
-        if len(pw) < self._n:
-            return 0.0
-        pw = helper.START + pw + helper.END
+        new_pw = helper.START + pw + helper.END
         try:
-            return helper.prod(self.cprob(pw[i], pw[:i])
-                               for i in range(1, len(pw)))
+            return helper.prod(self.cprob(new_pw[i], new_pw[:i])
+                               for i in range(1, len(pw)+1))
         except Exception as e:
             print((repr(pw)))
             raise e
