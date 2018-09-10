@@ -7,6 +7,7 @@ import dawg
 import functools
 import pathlib
 import json
+import heapq
 
 from . import helper
 from .fast_fuzzysearch import fast_fuzzysearch
@@ -16,7 +17,7 @@ npws_w = '\x02__NPWS__\x03'
 reserved_words = {totalf_w, npws_w}
 
 def create_model(modelfunc, fname='', listw=[], outfname='',
-                 limit=int(3e6), min_pwlen=6):
+                 limit=int(3e6), min_pwlen=6, topk=10000):
     """:modelfunc: is a function that takes a word and returns its
     splits.  for ngram model this function returns all the ngrams of a
     word, for PCFG it will return splits of the password.
@@ -36,6 +37,8 @@ def create_model(modelfunc, fname='', listw=[], outfname='',
 
     big_dict = defaultdict(int)
     total_f, total_e = 0, 0
+    # Add topk passwords from the input dataset to the list
+    topk_pws = []
     for pw, c in itertools.chain(pws, listw):
         for ng in modelfunc(pw):
             big_dict[ng] += c
@@ -44,8 +47,14 @@ def create_model(modelfunc, fname='', listw=[], outfname='',
         if len(big_dict) % 100000 == 0:
             print(("Dictionary size: {} (Total_freq: {}; Total_pws: {}"\
                    .format(len(big_dict), total_f, total_e)))
+        if len(topk_pws) >= topk:
+            heapq.heappushpop(topk_pws, (c, pw))
+        else:
+            heapq.heappush(topk_pws, (c, pw))
     big_dict[npws_w] = total_e
     big_dict[totalf_w] = total_f
+    for c, pw in topk_pws:
+        big_dict[pw] += c
 
     nDawg = dawg.IntCompletionDAWG(big_dict)
     if not outfname:
@@ -333,6 +342,7 @@ class NGramPw(PwModel):
         @n is the number of password to generate. 
         **This function is expensive, and shuold be called only if necessary. 
         Cache its call as much as possible**
+        # TODO: Need to recheck how to make sure this is working.
         """
         # assert alpha < beta, 'alpha={} must be less than beta={}'.format(alpha, beta)
         states = [(-1.0, helper.START)]
@@ -357,8 +367,19 @@ class NGramPw(PwModel):
                 print("Done")
         return ret
 
+    def _get_largest_prefix(self, pw):
+        s = self._T.prefixes(pw)
+        if not s or len(s[-1]) <= self._n: return ('', 0.0), pw
+        pre = s[-1]
+        rest = pw[len(pre):]
+        pre_prob = self._T.get(pre)/self.totalf()
+        return (pre, pre_prob), rest
+
     @functools.lru_cache(maxsize=100000)
     def prob(self, pw):
+        (pre, pre_prob), rest_pw = self._get_largest_prefix(pw)
+        if pre_prob > 0.0:
+            return pre_prob * self.prob(pre[-(self._n-1):] + rest_pw)
         new_pw = helper.START + pw + helper.END
         try:
             return helper.prod(self.cprob(new_pw[i], new_pw[:i])
@@ -366,6 +387,12 @@ class NGramPw(PwModel):
         except Exception as e:
             print((repr(pw)))
             raise e
+
+
+def normalize(pw):
+    """ Lower case, and change the symbols to closest characters"""
+    pw_lower = pw.lower()
+    return ''.join(helper.L33T.get(c, c) for c in pw_lower)
 
 
 ################################################################################

@@ -201,7 +201,7 @@ def sample_following_dist(handle_iter, n, totalf):
 
 try:
     # import pyximport; pyximport.install()
-    from pwmodel._fast import compute_ngrams
+    from ._fast import compute_ngrams
 
     def ngramsofw(word, n, maxn=0):
         return compute_ngrams(word, n, maxn)

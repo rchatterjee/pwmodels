@@ -5,7 +5,7 @@ from Cython.Build import cythonize
 
 setup(
     name='pwmodels',
-    version='1.2',
+    version='1.3',
     description='A simple password model generating tool',
     long_description="This module creates different useful password models, such as ngram model or PCFG mdoel.",
 
