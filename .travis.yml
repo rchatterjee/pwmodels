@@ -4,7 +4,7 @@ python:
 
 install:
  - pip install -r ./requirements.txt
- - cd pwmodel/ && cythonize -a -i _fast.pyx && cd -
+ - pip install .
 
 script:
  - DEBUG=1 pytest
