@@ -25,8 +25,8 @@ print pwm.prob('passwords123')
 1.0.0
 
 ## TODO
-* Add a function to enable the models to churn out passwords in decreasing order
-  of their probability
+* ~Add a function to enable the models to churn out passwords in decreasing order
+  of their probability~
 * Add better pcfg model, especially updated with keyboard sequence, and
   repeating characters, more natural way of spliting the password than just
   based on continuous sequence of letters, digits and symbols.

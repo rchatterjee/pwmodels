@@ -6,3 +6,5 @@ print(sys.path)
 
 import pwmodel
 
+ry_leak_file = os.path.expanduser('~/passwords/rockyou-withcount.txt.gz')
+phpbb_leak_file = os.path.expanduser('~/passwords/phpbb-withcount.txt.gz')

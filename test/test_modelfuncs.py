@@ -3,7 +3,7 @@ import os
 import pytest
 from .context import pwmodel as pwm
 
-leak_file = os.path.expanduser('~/passwords/phpbb-withcount.txt.bz2')
+leak_file = os.path.expanduser('~/passwords/phpbb-withcount.txt.gz')
 
 
 @pytest.mark.parametrize(
