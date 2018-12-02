@@ -1,2 +1,2 @@
-# graft src
+graft src
 include *.txt
