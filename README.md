@@ -20,9 +20,12 @@ from pwmodel import NGramPw, PcfgPw, HistPw
 pwm = NGramPw(pwfilename='/Users/badger/passwords/myspace-withcount.tar.bz2', n=4)
 print pwm.prob('passwords123')
 ```
+See `tests/` for more usage information.
+
+
 
 ## Version
-1.0.0
+1.3
 
 ## TODO
 * ~Add a function to enable the models to churn out passwords in decreasing order
@@ -32,3 +35,7 @@ print pwm.prob('passwords123')
   based on continuous sequence of letters, digits and symbols.
 * `n`-gram model is pretty slow now, because it has to comppute the sum of
   frequency of all the passwords that start with `START` (which is a lot).
+
+
+## Changelog
+1. Added `readpw.py`, ann utility to read password leak data. 
