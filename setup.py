@@ -37,7 +37,7 @@ setup(
 
     keywords="password model ngram pcfg cracking",
     packages=['pwmodel'],  # find_packages(exclude(['contrib', 'docs', 'tests*'])),
-    ext_modules = cythonize("pwmodel/_fast.pyx"),
+    ext_modules=cythonize("pwmodel/_fast.pyx"),
     package_dir={'pwmodel': 'pwmodel'},
     package_data={'pwmodel': ['data/*.dawg']},
     install_requires=[
