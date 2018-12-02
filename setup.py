@@ -1,7 +1,24 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+# -*- encoding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import print_function
 
+from glob import glob
 from setuptools import setup
-from Cython.Build import cythonize
+# from distutils.core import setup
+from distutils.extension import Extension
+
+USE_CYTHON = False   # command line option, try-import, ...
+
+ext = '.pyx' if USE_CYTHON else '.c'
+
+extensions = [Extension("pwmodel/_fast", ["src/pwmodel/_fast"+ext])]
+# data = glob('src/pwmodel/data/*')
+# print(data)
+
+if USE_CYTHON:
+    from Cython.Build import cythonize
+    extensions = cythonize(extensions)
 
 setup(
     name='pwmodels',
@@ -35,14 +52,25 @@ setup(
     #     'Programming Language :: Python :: 3.6',
     # ],
 
-    keywords="password model ngram pcfg cracking",
+    keywords="password model ngram pcfg cracking".split(),
     packages=['pwmodel'],  # find_packages(exclude(['contrib', 'docs', 'tests*'])),
-    ext_modules=cythonize("pwmodel/_fast.pyx"),
-    package_dir={'pwmodel': 'pwmodel'},
-    package_data={'pwmodel': ['data/*.dawg']},
+    ext_modules=extensions,
+    # ext_modules=cythonize("pwmodel/_fast.pyx"),
+    package_dir={'': 'src'},
+    include_package_data=True,
+    # package_data={
+    #     '': ["*.txt", "*.rst"],
+    #     'src/pwmodel': data,
+    # },
+    dependency_links=["https://github.com/fujimotos/polyleven/archive/0.3.tar.gz"],
+    setup_requires=[
+        'cython'
+    ],
     install_requires=[
-        'dawg', 'cython'
+        'dawg', 'cython', 'marisa_trie', 'polyleven',
+        'python-levenshtein', 'numpy'   # for readpw
+        # 'git://github.com/fujimotos/polyleven'
     ],
     scripts=['scripts/buildmodel.py']
-    # data_files=[('pwmodel/data/', ['ngram-0-phpbb.dawg', 'ngram-3-phpbb.dawg', 'ngram-4-phpbb.dawg'])]
+    # data_files=[('src/pwmodel/data/', ['ngram-0-phpbb.dawg', 'ngram-3-phpbb.dawg', 'ngram-4-phpbb.dawg'])]
 )
