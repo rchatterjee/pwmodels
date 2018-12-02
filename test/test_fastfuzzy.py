@@ -1,5 +1,5 @@
 import unittest
-from pwmodel.fast_fuzzysearch import Fast2FuzzySearch, lvdistance
+from .context import phpbb_leak_file, pwmodel, Fast2FuzzySearch, lvdistance
 
 
 class TestPasswords(unittest.TestCase):
@@ -9,7 +9,7 @@ class TestPasswords(unittest.TestCase):
         import time
         import random
         import numpy as np
-        fname = os.path.expanduser('~/passwords/rockyou-withcount.txt.gz')
+        fname = phpbb_leak_file
         pws = list(set(
             str(pw)
             for pw, f in helper.open_get_line(fname, limit=10000000)

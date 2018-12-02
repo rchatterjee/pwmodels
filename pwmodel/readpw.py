@@ -10,7 +10,7 @@ from os.path import (expanduser)
 from math import sqrt
 # opens file checking whether it is bz2 compressed or not.
 import tarfile
-
+from .helper import open_get_line
 """A simple password library. Has function to put passwords into nice data
 structure for fast look up.
 
@@ -76,43 +76,6 @@ def sample_following_dist(handle_iter, n, totalf):
         else:
             break
 
-def MILLION(n):
-    return n*10e6
-
-def sort_dict(D):
-    # sort the dictionary by keys and returns a tuple list
-    return sorted(D.items(), key=operator.itemgetter(1))
-
-# returns the type of file.
-def file_type(filename):
-    magic_dict = {
-        b"\x1f\x8b\x08": "gz",
-        b"\x42\x5a\x68": "bz2",
-        b"\x50\x4b\x03\x04": "zip"
-    }
-    max_len = max(len(x) for x in magic_dict)
-    with open(filename, 'rb') as f:
-        file_start = f.read(max_len)
-    for magic, filetype in magic_dict.items():
-        if file_start.startswith(magic):
-            return filetype
-    return "no match"
-
-
-def open_(filename, mode='r'):
-    """Replace with tarfile.open in future, and ignore Python2"""
-    if mode == 'w':
-        type_ = filename.split('.')[-1]
-    else:
-        type_ = file_type(filename)
-    if type_ == "bz2":
-        f = bz2.open(filename, mode + 't', errors='replace')
-    elif type_ == "gz":
-        f = tarfile.open(filename, mode)
-    else:
-        f = open(filename, mode)
-    return f
-
 
 def getallgroups(arr, k=-1):
     """
@@ -134,44 +97,6 @@ def is_asciistring(s):
     except (UnicodeDecodeError, UnicodeEncodeError) as e:
         # warning("UnicodeError:", s, str(e))
         return False
-
-def get_line(file_object, limit=-1, pw_filter=lambda x: True):
-    regex = re.compile(r'\s*([0-9]+) (.*)$')
-    i = 0
-    for l in file_object:
-        if limit>0 and limit<=i:
-            break
-        m = regex.match(l)
-        if not m:
-            warning ("REGEX FAIL: ", l)
-        c, w = m.groups()
-        c = int(c)
-        w = w.replace('\x00', '\\x00')
-        # try:
-        #     w = w.decode('utf-8', errors='replace')
-        # except UnicodeDecodeError:
-        #     #try with latin1
-        #     warning("Error in decoding: ({} {}). Line: {}. Ignoring!"\
-        #             .format(w, c, l))
-        #     continue
-        if w and pw_filter(w) and c>0:
-            i += 1
-            yield w,c
-        else:
-            pass
-            #warning ("Filter Failed or malformed string: ", w, c)
-
-
-def open_get_line(filename, limit=-1, **kwargs):
-    """Opens the password file named @filename and reads first @limit
-    passwords. @kwargs are passed to get_line for further processing.
-    For example, pw_filter etc.
-    @fielname: string
-    @limit: integer
-    """
-    with open_(filename) as f:
-        for w,c in get_line(f, limit, **kwargs):
-            yield w, c
 
 regex = r'([A-Za-z_]+)|([0-9]+)|(\W+)'
 def print_err( *args ):
@@ -205,10 +130,6 @@ def convert2group(t, totalC):
     What is this?
     """
     return t + np.random.randint(0, (MAX_INT-t)/totalC) * totalC
-
-def warning(*objs):
-    if DEBUG:
-        print("WARNING: ", *objs, file=sys.stderr)
 
 # assumes last element in the array(A) is the sum of all elements
 def getIndex(p, A):

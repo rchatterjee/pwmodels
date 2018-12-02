@@ -243,6 +243,7 @@ class NGramPw(PwModel):
     def get_freq(self, x):
         """get freq of x  with or without L33t transformations """
         keys = self._T.similar_keys(x, self._leet)
+        # print("get_freq: {!r} -> {!r}".format(x, keys))
         if len(keys) > 0:
             return self._T[keys[0]]
         else:

@@ -2,14 +2,14 @@ import os
 
 from .context import pwmodel as pwm
 
-leak_file = os.path.join(pwm.helper.thisdir, 'data', 'phpbb-withcount.txt.bz2')
+leak_file = os.path.join(pwm.helper.thisdir, 'data', 'phpbb-withcount.txt.gz')
 
 
 class TestNgramPw(object):
     def test_ngrampw(self):
         ngpw = pwm.NGramPw(n=4, pwfilename=leak_file)
         for (pw1, pw2) in [('password12', 'assword12'),
-                           ('1234567', '123456789'),
+                           ('1234567', '12345679'),
                            ('password', 'pasword')]:
             assert ngpw.prob(pw1) > ngpw.prob(pw2)
 

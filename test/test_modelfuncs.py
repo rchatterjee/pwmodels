@@ -2,9 +2,9 @@ import os
 
 import pytest
 from .context import pwmodel as pwm
+from .context import phpbb_leak_file
 
-leak_file = os.path.expanduser('~/passwords/phpbb-withcount.txt.gz')
-
+leak_file = phpbb_leak_file
 
 @pytest.mark.parametrize(
     'ngrampw',
@@ -13,16 +13,21 @@ leak_file = os.path.expanduser('~/passwords/phpbb-withcount.txt.gz')
 class TestNgram(object):
     @pytest.mark.parametrize('word', ['asd', 'a'])
     def test_small_word(self, word, ngrampw):
-        ngrampw._n = 6
-        assert ngrampw.ngramsofw(word) == ['\x02' + word + '\x03']
+        ngrampw._n = 1
+        assert ngrampw.ngramsofw(word) == ['\x02', *word, '\x03']
 
     @pytest.mark.parametrize(('word', 'n'), [('password', 1),
                                              ('aaaaaaaaaa', 5)
                                              ])
     def test_length_all_ngrams(self, word, n, ngrampw):
         ngrampw._n = n
-        assert all([len(x) == n for x in ngrampw.ngramsofw(word)])
-        assert len(ngrampw.ngramsofw(word)) == max(1, len(word) - n + 3)
+        assert all([len(x) <= n for x in ngrampw.ngramsofw(word)])
+        # maximum length of a ngram min(len(word)+2, n)
+        # k = max size of an n-gram
+        # sum_{i=1}^k (len(word)-i+3) = k*(len(word) + 3) - k(k+1)/2
+        k_max = min(len(word) + 2, n)
+        n_ngrams = k_max * (len(word) + 3 - (k_max + 1) / 2)
+        assert len(ngrampw.ngramsofw(word)) == n_ngrams
 
     @pytest.mark.parametrize(
         ('word', 'n'),
@@ -32,13 +37,15 @@ class TestNgram(object):
     )
     def test_completeness(self, word, n, ngrampw):
         ngrampw._n = n
-        ret = ''
+        ret = ['' for _ in range(n)]
         for w in ngrampw.ngramsofw(word):
-            if not ret:
-                ret = w
+            i = len(w) - 1
+            if not ret[i]:
+                ret[i] = w
             else:
-                ret += w[-1]
-        assert ret[1:-1] == word
+                ret[i] += w[-1]
+        for i in range(n):
+            assert not ret[i] or ret[i][1:-1] == word
 
 
 @pytest.mark.parametrize(

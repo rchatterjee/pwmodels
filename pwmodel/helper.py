@@ -224,13 +224,8 @@ def MILLION(n):
     return int(n * 1e6)
 
 
-def sort_dict(D):
-    # sort the dictionary by keys and returns a tuple list
-    return sorted(list(D.items()), key=operator.itemgetter(1))
-
-
-# returns the type of file.
 def file_type(filename, param='rb'):
+    """returns the type of file, e.g., gz, bz2, normal"""
     magic_dict = {
         b"\x1f\x8b\x08": "gz",
         b"\x42\x5a\x68": "bz2",
@@ -290,7 +285,8 @@ def isascii(s):
     try:
         s.encode('ascii')
         return True
-    except UnicodeError:
+    except (UnicodeDecodeError, UnicodeEncodeError) as e:
+        # warning("UnicodeError:", s, str(e))
         return False
 
 
@@ -316,6 +312,12 @@ def get_line(file_object, limit=-1, pw_filter=lambda x: True, errors='replace'):
 
 
 def open_get_line(filename, limit=-1, **kwargs):
+    """Opens the password file named @filename and reads first @limit
+    passwords. @kwargs are passed to get_line for further processing.
+    For example, pw_filter etc.
+    @fielname: string
+    @limit: integer
+    """
     with open_(filename, 'rt') as f:
         for w, c in get_line(f, limit, **kwargs):
             yield w, c
