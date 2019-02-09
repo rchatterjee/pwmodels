@@ -1,5 +1,6 @@
 import heapq
-import os, sys
+import os
+import sys
 import itertools
 from collections import defaultdict
 import operator
@@ -7,14 +8,19 @@ import dawg
 import functools
 import pathlib
 import json
-import heapq
+import string
 
 from . import helper
 from .fast_fuzzysearch import fast_fuzzysearch
 
-totalf_w = '\x02__TOTALF__\x03'
-npws_w = '\x02__NPWS__\x03'
-reserved_words = {totalf_w, npws_w}
+TOTALF_W = '\x02__TOTALF__\x03'
+NPWS_W = '\x02__NPWS__\x03'
+reserved_words = {TOTALF_W, NPWS_W}
+# Valid characters for passwords
+# string.digits + string.ascii_letters + string.punctuation
+VALID_CHARS = set(string.printable[:-6] + helper.START + helper.END)
+N_VALID_CHARS = len(VALID_CHARS)
+
 
 def create_model(modelfunc, fname='', listw=[], outfname='',
                  limit=int(3e6), min_pwlen=6, topk=10000):
@@ -29,6 +35,7 @@ def create_model(modelfunc, fname='', listw=[], outfname='',
     """
 
     def length_filter(pw):
+        pw = ''.join(c for c in pw if c in VALID_CHARS)
         return len(pw) >= min_pwlen
 
     pws = []
@@ -51,10 +58,18 @@ def create_model(modelfunc, fname='', listw=[], outfname='',
             heapq.heappushpop(topk_pws, (c, pw))
         else:
             heapq.heappush(topk_pws, (c, pw))
-    big_dict[npws_w] = total_e
-    big_dict[totalf_w] = total_f
-    for c, pw in topk_pws:
-        big_dict[pw] += c
+    # Adding topk password to deal with probability reduction of popular
+    # passwords. Mostly effective for n-gram models
+    print("topk={}".format(topk))
+    if topk > 0:
+        for c, pw in topk_pws:
+            tpw = helper.START + pw + helper.END
+            big_dict[tpw] += c
+            total_f += c
+            total_e += 1
+
+    big_dict[NPWS_W] = total_e
+    big_dict[TOTALF_W] = total_f
 
     nDawg = dawg.IntCompletionDAWG(big_dict)
     if not outfname:
@@ -84,7 +99,7 @@ class PwModel(object):
     def __init__(self, **kwargs):
         pwfilename = kwargs.get('pwfilename', '')
         self._leak = os.path.basename(pwfilename).split('-')[0]
-        freshall = kwargs.get('freshal', False)
+        freshall = kwargs.get('freshall', False)
         self.modelname = kwargs.get('modelname', 'ngram-3')
         if not self._leak:
             self._leak = kwargs.get('leak', 'tmp')
@@ -93,7 +108,7 @@ class PwModel(object):
             '{}-{}.dawg.gz'.format(self._leak, self.modelname)
         )
         self._T = None
-        if kwargs.get('T') != None:
+        if kwargs.get('T') is not None:
             self._T = kwargs.get('T')
             return
         if freshall:
@@ -113,7 +128,8 @@ class PwModel(object):
                 fname=pwfilename, listw=kwargs.get('listw', []),
                 outfname=self._modelf,
                 modelfunc=kwargs.get('modelfunc', self.modelfunc),
-                limit=int(kwargs.get('limit', 3e6))
+                limit=int(kwargs.get('limit', 3e6)),
+                topk=kwargs.get('topk', -1)
             )
 
     def modelfunc(self, w):
@@ -137,10 +153,10 @@ class PwModel(object):
         return 'Pwmodel<{}-{}>'.format(self.modelname, self._leak)
 
     def npws(self):
-        return self._T[npws_w]
+        return self._T[NPWS_W]
 
     def totalf(self):
-        return self._T[totalf_w]
+        return self._T[TOTALF_W]
 
     def leakname(self):
         return self._leak
@@ -157,6 +173,7 @@ class PcfgPw(PwModel):
     def __init__(self, pwfilename, **kwargs):
         kwargs['modelfunc'] = self.pcfgtokensofw
         kwargs['modelname'] = 'weir-pcfg'
+        kwargs['topk'] = 10000
         super(PcfgPw, self).__init__(pwfilename=pwfilename, **kwargs)
 
     def pcfgtokensofw(self, word):
@@ -230,6 +247,7 @@ class NGramPw(PwModel):
         kwargs['n'] = kwargs.get('n', 3)
         self._n = kwargs.get('n', 3)
         kwargs['modelname'] = 'ngram-{}'.format(self._n)
+        kwargs['topk'] = -1
         super(NGramPw, self).__init__(pwfilename=pwfilename, **kwargs)
         self._leet = self._T.compile_replaces(helper.L33T)
 
@@ -253,36 +271,33 @@ class NGramPw(PwModel):
         """
         :param history: string
         :param c: character
-        P[c | history] = f(historyc)/f(history)
+        P[c | history] = (f(history+c) + 1)/(f(history) + |V|-1)
+        Implement add-1 smoothing with backoff for simplicty.
+        TODO: Does it make sense
         returns P[c | history]
         """
+        if not history:
+            return 1
         hist = history[:]
         if len(history) >= self._n:
             history = history[-(self._n - 1):]
         if not isinstance(history, str):
             history = str(history)
-        d, n = 0.0, 0
-        while (d == 0.0 or n == 0.0) and len(history) >= 1:
+        d, n = 0.0, 0.0
+        while (d == 0.0) and len(history) >= 1:
             try:
                 d = self.get_freq(history)
                 n = self.get_freq(history + c)
-                # if len(history) < self._n - 1:
-                #     n = self.sum_freq(history + c)
-                # else:
-                #     n = self._T.get(history + c, 0.0)
             except UnicodeDecodeError as e:
                 print(("ERROR:", repr(history), e))
                 raise e
             history = history[1:]
 
-        # TODO - implement backoff
         assert d != 0, "ERROR: Denominator zero!\n" \
                        "d={} n={} history={!r} c={!r} ({})" \
             .format(d, n, hist, c, self._n)
-        # if n==0:
-        #     print "Zero n", repr(hist), repr(c)
 
-        return (n + MIN_PROB) / d
+        return (n + 1) / (d + N_VALID_CHARS-1)
 
     def ngramsofw(self, word):
         return helper.ngramsofw(word, 1, self._n)
@@ -293,21 +308,24 @@ class NGramPw(PwModel):
         if not history:
             return helper.START
         history = history[-(self._n-1):]
+        while history and not self._T.get(history):
+            history = history[1:]
         kv = [(k, v) for k, v in self._T.items(history)
-              if k not in reserved_words]
+              if not (k in reserved_words or k == history)]
         total = sum(v for k, v in kv)
         while total == 0 and len(history) > 0:
             history = history[1:]
-            kv = [(k, v) for k, v in self._T.items(history) 
-                  if k not in reserved_words]
+            kv = [(k, v) for k, v in self._T.items(history)
+                  if not (k in reserved_words or k == history)]
             total = sum(v for k, v in kv)
         assert total > 0, "Sorry there is no n-gram with {!r}".format(orig_history)
-        d = {}
+        d = defaultdict(float)
+        total = self._T.get(history)
         for k, v in kv:
-            k = k[len(history)]
-            d[k] = d.get(k, 0) + v/total
+            k = k[len(history):]
+            d[k] += (v+1)/(total + N_VALID_CHARS-1)
         return d
-        
+
     def _gen_next(self, history):
         """Generate next character sampled from the distribution of characters next.
         """
@@ -336,32 +354,46 @@ class NGramPw(PwModel):
 
     def generate_pws_in_order(self, n, filter_func=None, N_max=1e6):
         """
-        Generates passwords in order between probability (alpha, beta]
+        Generates passwords in order between upto N_max
         @N_max is the maximum size of the priority queue will be tolerated,
-        so if the size of the queue is bigger than 1.5 * N_max, it will shrink 
+        so if the size of the queue is bigger than 1.5 * N_max, it will shrink
         the size to 0.75 * N_max
-        @n is the number of password to generate. 
-        **This function is expensive, and shuold be called only if necessary. 
+        @n is the number of password to generate.
+        **This function is expensive, and shuold be called only if necessary.
         Cache its call as much as possible**
         # TODO: Need to recheck how to make sure this is working.
         """
         # assert alpha < beta, 'alpha={} must be less than beta={}'.format(alpha, beta)
         states = [(-1.0, helper.START)]
+        # get the topk first
         p_min = 1e-9 / (n**2)   # max 1 million entries in the heap 
         ret = []
+        done = set()
+        already_added_in_heap = set()
         while len(ret) < n and len(states) > 0:
+        # while n > 0 and len(states) > 0:
             p, s = heapq.heappop(states)
-            if p<0: 
+            if p < 0:
                 p = -p
+            if s in done: continue
+            assert s[0] == helper.START, "Broken s: {!r}".format(s)
             if s[-1] == helper.END:
-                s = s[1:-1]
-                if filter_func is None or filter_func(s):
-                    ret.append((s, p))
+                done.add(s)
+                clean_s = s[1:-1]
+                if filter_func is None or filter_func(clean_s):
+                    ret.append((clean_s, p))
+                    # n -= 1
+                    # yield (clean_s, p)
             else:
                 for c, f in self._get_next(s).items():
-                    if f*p < p_min: continue
+                    if (f*p < p_min or (s+c) in done or
+                        (s+c) in already_added_in_heap):
+                        continue
+                    already_added_in_heap.add(s+c)
                     heapq.heappush(states, (-f*p, s+c))
             if len(states) > N_max * 3 / 2:
+                print("Heap size: {}. ret={}. (expected: {}) s={!r}"
+                      .format(len(states), len(ret), n, s))
                 print("The size of states={}.  Still need={} pws. Truncating"
                       .format(len(states), n - len(ret)))
                 states = heapq.nsmallest(int(N_max * 3/4), states)
@@ -370,24 +402,34 @@ class NGramPw(PwModel):
 
     def _get_largest_prefix(self, pw):
         s = self._T.prefixes(pw)
-        if not s or len(s[-1]) <= self._n: return ('', 0.0), pw
+        if not s or len(s[-1]) <= self._n:
+            return ('', 0.0), pw
         pre = s[-1]
         rest = pw[len(pre):]
         pre_prob = self._T.get(pre)/self.totalf()
         return (pre, pre_prob), rest
 
+    def _prob(self, pw, given=''):
+        p = 1.0
+        while pw:
+            (pre, pre_prob), rest_pw = self._get_largest_prefix(pw)
+            # print("pw={!r} given={!r} p={}".format(pw, given, p))
+            if pre_prob > 0.0:
+                p *= pre_prob
+                pw, given = rest_pw, pre
+            else:
+                try:
+                    p *= self.cprob(pw[0], given)
+                    pw, given = pw[1:], given+pw[0]
+                except Exception as e:
+                    print((repr(pw)))
+                    raise e
+        return p
+
     @functools.lru_cache(maxsize=100000)
     def prob(self, pw):
-        (pre, pre_prob), rest_pw = self._get_largest_prefix(pw)
-        if pre_prob > 0.0:
-            return pre_prob * self.prob(pre[-(self._n-1):] + rest_pw)
         new_pw = helper.START + pw + helper.END
-        try:
-            return helper.prod(self.cprob(new_pw[i], new_pw[:i])
-                               for i in range(1, len(pw)+1))
-        except Exception as e:
-            print((repr(pw)))
-            raise e
+        return self._prob(new_pw)
 
 
 def normalize(pw):
@@ -427,14 +469,14 @@ class HistPw(PwModel):
         returns the probabiltiy of pw in the model.
         P[pw] = n(pw)/n(__total__)
         """
-        return float(self._T.get(pw, 0)) / self._T[totalf_w]
+        return float(self._T.get(pw, 0)) / self._T[TOTALF_W]
 
     def prob_correction(self, f=1):
         """
         Corrects the probability error due to truncating the distribution.
         """
         total = {'rockyou': 32602160}
-        return f * self._T[totalf_w] / total.get(self._leak, self._T[totalf_w])
+        return f * self._T[TOTALF_W] / total.get(self._leak, self._T[TOTALF_W])
 
     def iterpasswords(self, n=-1):
         return helper.open_get_line(self.pwfilename, limit=n)

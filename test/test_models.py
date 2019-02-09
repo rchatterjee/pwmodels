@@ -7,15 +7,18 @@ leak_file = os.path.join(pwm.helper.thisdir, 'data', 'phpbb-withcount.txt.gz')
 
 class TestNgramPw(object):
     def test_ngrampw(self):
-        ngpw = pwm.NGramPw(n=4, pwfilename=leak_file)
+        ngpw = pwm.NGramPw(n=4, pwfilename=leak_file, freshall=True)
         for (pw1, pw2) in [('password12', 'assword12'),
                            ('1234567', '12345679'),
                            ('password', 'pasword')]:
             assert ngpw.prob(pw1) > ngpw.prob(pw2)
 
+    def test_ngrampw_generate_in_order(self):
+        ngpw = pwm.NGramPw(n=4, pwfilename=leak_file)
+        for pw, p in ngpw.generate_pws_in_order(1000):
+            assert abs(p - ngpw.prob(pw)) <= 1e-3
 
 # PCFG probabilties are wrong -- TODO - will fix it later
-
 class TestModel(object):
     def test_model_prob(self):
         pcfgpw = pwm.PcfgPw(leak_file)
