@@ -22,7 +22,7 @@ if USE_CYTHON:
 
 setup(
     name='pwmodels',
-    version='1.3',
+    version='1.3.1',
     description='A simple password model generating tool',
     long_description="This module creates different useful password models, such as ngram model or PCFG mdoel.",
 
