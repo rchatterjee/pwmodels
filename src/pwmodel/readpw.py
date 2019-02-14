@@ -170,7 +170,7 @@ class Passwords(object):
         if not kwargs.get('freshall', False) and os.path.exists(self._file_trie) and os.path.exists(self._file_freq):
             self.load_data()
         else:
-            del kwargs['freshall']
+            if 'freshall' in kwargs: del kwargs['freshall']
             self.create_data_structure(pass_file, **kwargs)
         assert self._T, "Could not initialize the trie."
 
