@@ -167,9 +167,10 @@ class Passwords(object):
         self._file_trie = os.path.join(_dirname, self.fbasename + '.trie')
         self._file_freq = os.path.join(_dirname, self.fbasename + '.npz')
         self._T, self._freq_list, self._totalf = None, None, None
-        if os.path.exists(self._file_trie) and os.path.exists(self._file_freq):
+        if not kwargs.get('freshall', False) and os.path.exists(self._file_trie) and os.path.exists(self._file_freq):
             self.load_data()
         else:
+            del kwargs['freshall']
             self.create_data_structure(pass_file, **kwargs)
         assert self._T, "Could not initialize the trie."
 
@@ -180,6 +181,7 @@ class Passwords(object):
         #             for i, (w,c) in
         #     enumerate(passwords.open_get_line(pass_file)))
         # )
+        print(kwargs)
         tmp_dict = {w: c for w,c in open_get_line(pass_file, **kwargs)}
         self._T = marisa_trie.Trie(tmp_dict.keys())
         self._freq_list = np.zeros(len(self._T), dtype=int)

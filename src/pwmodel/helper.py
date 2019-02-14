@@ -294,11 +294,13 @@ def isascii(s):
 def get_line(file_object, limit=-1, sep=r'\s+', pw_filter=lambda x: True, errors='replace'):
     # regex = re.compile(r'\s*([0-9]+) (.*)$')
     i = 0
-    print("sep={}".format(sep))
+    print("sep={!r}".format(sep))
     for l in file_object:
         if limit > 0 and limit <= i:
             break
-        c, w = re.split(sep, l.rstrip('\n').lstrip(), maxsplit=1)
+        t = re.split(sep, l.rstrip('\n').lstrip(), maxsplit=1)
+        if len(t) != 2: continue
+        c, w = t
         c = int(c)
         w = w.replace('\x00', '\\x00')
         # if not isascii(w):
@@ -319,6 +321,11 @@ def open_get_line(filename, limit=-1, **kwargs):
     @fielname: string
     @limit: integer
     """
+    allowed_keys_for_get_line = {'sep', 'pw_filter', 'errors'}
+    for k in list(kwargs.keys()):
+        if k not in allowed_keys_for_get_line:
+            del kwargs[k]
+    print("After filtering: {}".format(kwargs))
     with open_(filename, 'rt') as f:
         for w, c in get_line(f, limit, **kwargs):
             yield w, c

@@ -21,7 +21,7 @@ class TestPasswords(unittest.TestCase):
         # tf = tempfile.NamedTemporaryFile(mode='w+')
         # tf.write(" 1234 password\n33   123456\n00234\t password1\n")
         # pws = {w:c for w,c in helper.open_get_line(tf.name)}
-        pws = Passwords(test_file)
+        pws = Passwords(test_file, freshall=True)
         for pw, f in [('password', 35), ('123456', 344)]:
             self.assertEqual(pws.pw2freq(pw), f, "Frequency mismatch for"
                              "{}, expected {}, got {}"\
@@ -31,7 +31,7 @@ class TestPasswords(unittest.TestCase):
         # tf = tempfile.NamedTemporaryFile(mode='w+')
         # tf.write(" 1234\tpassword\n33  \t123456\n00234\t password\n")
         # pws = {w:c for w,c in helper.open_get_line(tf.name, sep='\t')}
-        pws = Passwords(test_file, sep='\t')
+        pws = Passwords(test_file, sep='\t', freshall=True)
         for pw, f in [('password', 1234), ('123456', 344), (' password', 35)]:
             self.assertEqual(pws.pw2freq(pw), f, "Frequency mismatch for"
                              "{}, expected {}, got {}"\
