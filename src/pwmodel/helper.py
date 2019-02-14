@@ -291,13 +291,14 @@ def isascii(s):
 
 
 
-def get_line(file_object, limit=-1, pw_filter=lambda x: True, errors='replace'):
-    regex = re.compile(r'\s*([0-9]+) (.*)$')
+def get_line(file_object, limit=-1, sep=r'\s+', pw_filter=lambda x: True, errors='replace'):
+    # regex = re.compile(r'\s*([0-9]+) (.*)$')
     i = 0
+    print("sep={}".format(sep))
     for l in file_object:
         if limit > 0 and limit <= i:
             break
-        c, w = re.split(r'\s+', l.rstrip('\n').lstrip(), maxsplit=1)
+        c, w = re.split(sep, l.rstrip('\n').lstrip(), maxsplit=1)
         c = int(c)
         w = w.replace('\x00', '\\x00')
         # if not isascii(w):

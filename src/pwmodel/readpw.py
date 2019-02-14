@@ -156,7 +156,7 @@ class Passwords(object):
     effect the totalf, and only changes the iterpws() function.
 
     """
-    def __init__(self, pass_file, max_pass_len=40, min_pass_len=1):
+    def __init__(self, pass_file, max_pass_len=40, min_pass_len=1, **kwargs):
         self.fbasename = os.path.basename(pass_file).split('.',1)[0]
         _dirname = '{}/eff_data/'.format(pass_dir)
         if not os.path.exists(_dirname):
@@ -170,17 +170,17 @@ class Passwords(object):
         if os.path.exists(self._file_trie) and os.path.exists(self._file_freq):
             self.load_data()
         else:
-            self.create_data_structure(pass_file)
+            self.create_data_structure(pass_file, **kwargs)
         assert self._T, "Could not initialize the trie."
 
-    def create_data_structure(self, pass_file):
+    def create_data_structure(self, pass_file, **kwargs):
         # Record trie, Slow, and not memory efficient
         # self._T = marisa_trie.RecordTrie(
         #     '<II', ((unicode(w), (c,))
         #             for i, (w,c) in
         #     enumerate(passwords.open_get_line(pass_file)))
         # )
-        tmp_dict = {w: c for w,c in open_get_line(pass_file)}
+        tmp_dict = {w: c for w,c in open_get_line(pass_file, **kwargs)}
         self._T = marisa_trie.Trie(tmp_dict.keys())
         self._freq_list = np.zeros(len(self._T), dtype=int)
         for k in self._T.iterkeys():
