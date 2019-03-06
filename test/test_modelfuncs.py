@@ -47,7 +47,13 @@ class TestNgram(object):
         for i in range(n):
             assert not ret[i] or ret[i][1:-1] == word
 
-
+    @pytest.mark.parametrize(
+        ('pw'),
+        [('s@f@r!')]
+    )
+    def test_leet_error_lucy(self, pw, ngrampw):
+        assert 0.0 < ngrampw.prob(pw) < 1.0
+        
 @pytest.mark.parametrize(
     'pcfgpw',
     [pwm.models.PcfgPw(leak_file)]

@@ -23,7 +23,7 @@ N_VALID_CHARS = len(VALID_CHARS)
 
 
 def create_model(modelfunc, fname='', listw=[], outfname='',
-                 limit=int(3e6), min_pwlen=6, topk=10000):
+                 limit=int(3e6), min_pwlen=6, topk=10000, sep=r'\s+'):
     """:modelfunc: is a function that takes a word and returns its
     splits.  for ngram model this function returns all the ngrams of a
     word, for PCFG it will return splits of the password.
@@ -40,7 +40,7 @@ def create_model(modelfunc, fname='', listw=[], outfname='',
 
     pws = []
     if fname:
-        pws = helper.open_get_line(fname, limit=limit, pw_filter=length_filter)
+        pws = helper.open_get_line(fname, limit=limit, pw_filter=length_filter, sep=sep)
 
     big_dict = defaultdict(int)
     total_f, total_e = 0, 0
@@ -129,7 +129,8 @@ class PwModel(object):
                 outfname=self._modelf,
                 modelfunc=kwargs.get('modelfunc', self.modelfunc),
                 limit=int(kwargs.get('limit', 3e6)),
-                topk=kwargs.get('topk', -1)
+                topk=kwargs.get('topk', -1),
+                sep=kwargs.get('sep', r'\s+')
             )
 
     def modelfunc(self, w):
@@ -260,12 +261,17 @@ class NGramPw(PwModel):
     @functools.lru_cache(maxsize=100000)
     def get_freq(self, x):
         """get freq of x  with or without L33t transformations """
-        keys = self._T.similar_keys(x, self._leet)
-        # print("get_freq: {!r} -> {!r}".format(x, keys))
-        if len(keys) > 0:
-            return self._T[keys[0]]
-        else:
-            return 0.0
+        # This is causing problem with ngram-probabilities.
+        # > pwm.prob('s@f@r!')
+        # > 1.441957095339684
+
+        # keys = self._T.similar_keys(x, self._leet)
+        return self._T.get(x, 0.0)
+        # # print("get_freq: {!r} -> {!r}".format(x, keys))
+        # if len(keys) > 0:
+        #     return self._T[keys[0]]
+        # else:
+        #     return 0.0
 
     def cprob(self, c, history):
         """
@@ -280,7 +286,7 @@ class NGramPw(PwModel):
             return 1
         hist = history[:]
         if len(history) >= self._n:
-            history = history[-(self._n - 1):]
+            history = history[-(self._n-1):]
         if not isinstance(history, str):
             history = str(history)
         d, n = 0.0, 0.0
@@ -450,6 +456,7 @@ class HistPw(PwModel):
         kwargs['modelfunc'] = lambda x: [x]
         kwargs['modelname'] = 'histogram'
         super(HistPw, self).__init__(pwfilename=pwfilename, **kwargs)
+        self.sep = kwargs.get('sep', r'\s+')
         self.pwfilename = pwfilename
         if fuzzysearch:
             self.ffs = fast_fuzzysearch(self._T.keys(), ed=2)
@@ -479,7 +486,7 @@ class HistPw(PwModel):
         return f * self._T[TOTALF_W] / total.get(self._leak, self._T[TOTALF_W])
 
     def iterpasswords(self, n=-1):
-        return helper.open_get_line(self.pwfilename, limit=n)
+        return helper.open_get_line(self.pwfilename, limit=n, sep=self.sep)
 
 
 if __name__ == "__main__":
