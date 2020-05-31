@@ -20,12 +20,12 @@ if __name__ == "__main__":
         print(Usage)
         sys.exit(1)
     if sys.argv[1] == '-hist':
-        hm = HistPw(sys.argv[2])
+        hm = HistPw(sys.argv[2], limit=-1)
         print(hm._modelf)
     elif sys.argv[1] == '-ngram':
         hm = NGramPw(sys.argv[2], n=int(sys.argv[3]) if len(sys.argv) > 3 else 3)
         print(hm._modelf)
-    elif sys.argv[1] == '-hist':
+    elif sys.argv[1] == '-pcfg':
         hm = PcfgPw(sys.argv[2])
         print(hm._modelf)
     else:
