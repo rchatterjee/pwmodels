@@ -22,7 +22,7 @@ if USE_CYTHON:
 
 setup(
     name='pwmodels',
-    version='1.3.1',
+    version='1.3.2',
     description='A simple password model generating tool',
     long_description="This module creates different useful password models, such as ngram model or PCFG mdoel.",
 
@@ -64,7 +64,8 @@ setup(
     # },
     dependency_links=["https://github.com/fujimotos/polyleven/archive/0.3.tar.gz"],
     setup_requires=[
-        'cython'
+        'cython',
+        'wheel'
     ],
     install_requires=[
         'dawg', 'cython', 'marisa_trie', 'polyleven',
