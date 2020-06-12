@@ -71,6 +71,6 @@ setup(
         'python-levenshtein', 'numpy'   # for readpw
         # 'git://github.com/fujimotos/polyleven'
     ],
-    scripts=['scripts/buildmodel.py']
+    scripts=['scripts/buildmodel.py', 'scripts/pwhistogram.py']
     # data_files=[('src/pwmodel/data/', ['ngram-0-phpbb.dawg', 'ngram-3-phpbb.dawg', 'ngram-4-phpbb.dawg'])]
 )

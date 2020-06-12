@@ -6,6 +6,7 @@ import itertools
 import operator
 import marisa_trie
 import numpy as np
+from pathlib import Path
 from os.path import (expanduser)
 from math import sqrt
 # opens file checking whether it is bz2 compressed or not.
@@ -155,26 +156,43 @@ class Passwords(object):
     range of password to consider. Note, this filtering does not
     effect the totalf, and only changes the iterpws() function.
 
+    @@kwargs: Add some extra arguments: @dirname='.' will use the local current
+    directory for effective data structures.  
+
+    WARNING: If your file contains more than 2MN, please create the trie from a
+    password frequency file using this command: 
+
+    $ pwfile=breach_compilation-withcount.txt;  awk '{$1=""; print $0}' ${pwfile} | marisa-build -o ${pwfile//.*}.trie
+
+    This will save significant amount of memory
     """
-    def __init__(self, pass_file, max_pass_len=40, min_pass_len=1, **kwargs):
-        self.fbasename = os.path.basename(pass_file).split('.',1)[0]
-        _dirname = '{}/eff_data/'.format(pass_dir)
+    def __init__(self, pass_file, min_pass_len=6, max_pass_len=50, **kwargs):
+        self.fbasename = os.path.basename(pass_file).split('.', 1)[0]
+        _dirname = Path(kwargs.get('dirname', '{}/eff_data/'.format(pass_dir)))
         if not os.path.exists(_dirname):
             os.makedirs(_dirname)
 
         self._max_pass_len = max_pass_len
         self._min_pass_len = min_pass_len
-        self._file_trie = os.path.join(_dirname, self.fbasename + '.trie')
-        self._file_freq = os.path.join(_dirname, self.fbasename + '.npz')
+        _file_base_name = '{}-{}_{}'.format(self.fbasename, self._min_pass_len, self._max_pass_len)
+        _limit = kwargs.get('limit', int(2e6)) # default value is 2 mn
+        if _limit > -1:
+            _file_base_name += "N{}mn".format(int(_limit/1e6))
+        print("Base file name: {}".format(_file_base_name))
+        self._file_trie = _dirname / (_file_base_name + '.trie')
+        self._file_freq = _dirname / (_file_base_name + '.npz')
         self._T, self._freq_list, self._totalf = None, None, None
-        if not kwargs.get('freshall', False) and os.path.exists(self._file_trie) and os.path.exists(self._file_freq):
+        if not kwargs.get('freshall', False) and \
+           os.path.exists(self._file_trie) and \
+           os.path.exists(self._file_freq):
             self.load_data()
         else:
             if 'freshall' in kwargs: del kwargs['freshall']
-            self.create_data_structure(pass_file, **kwargs)
+            self.create_data_structure(pass_file, freshall=True, **kwargs)
         assert self._T, "Could not initialize the trie."
+        self._sorted_freq_list = None
 
-    def create_data_structure(self, pass_file, **kwargs):
+    def create_data_structure(self, pass_file, freshall=False, **kwargs):
         # Record trie, Slow, and not memory efficient
         # self._T = marisa_trie.RecordTrie(
         #     '<II', ((unicode(w), (c,))
@@ -182,17 +200,26 @@ class Passwords(object):
         #     enumerate(passwords.open_get_line(pass_file)))
         # )
         print(kwargs)
-        tmp_dict = {w: c for w,c in open_get_line(pass_file, **kwargs)}
-        self._T = marisa_trie.Trie(tmp_dict.keys())
+        # If the trie for passwords is already there, read it
+        print("Trie file: {}".format(self._file_trie))
+        if os.path.exists(self._file_trie) and not freshall:
+            self._T = marisa_trie.Trie()
+            self._T.load(self._file_trie)
+        else:
+            print("Recreating the trie file")
+            self._T = marisa_trie.Trie(w for w, c in open_get_line(pass_file, **kwargs))
+            self._T.save(self._file_trie)
+
         self._freq_list = np.zeros(len(self._T), dtype=int)
-        for k in self._T.iterkeys():
-            self._freq_list[self._T.key_id(k)] = tmp_dict[k]
-        self._T.save(self._file_trie)
+        for w, c in open_get_line(pass_file, **kwargs):
+            try:
+                self._freq_list[self._T.key_id(w)] = c
+            except Exception as e:
+                print("Error: {}. w={}, c={}".format(e, w, c))
+
         self._totalf = self._freq_list.sum()
         np.savez_compressed(
-            self._file_freq,
-            freq=self._freq_list,
-            fsum=self._totalf
+            self._file_freq, freq=self._freq_list, fsum=self._totalf
         )
 
     def sample_pws(self, n, asperdist=True):
@@ -267,7 +294,10 @@ class Passwords(object):
         Return: pwid, password, frequency
         Every password is assigned an uniq id, for efficient access.
         """
-        for _id in np.argsort(self._freq_list)[::-1][:n]:
+        if self._sorted_freq_list is None:
+            self._sorted_freq_list = np.argsort(self._freq_list)[::-1]
+
+        for _id in self._sorted_freq_list:
             pw = self._T.restore_key(_id)
             if self._min_pass_len <= len(pw) <= self._max_pass_len:
                 yield _id, pw, self._freq_list[_id]
@@ -282,8 +312,21 @@ class Passwords(object):
     def values(self):
         return self._freq_list
 
+    def guessranks(self, pws):
+        """return teh guess rank of a password @pw according to this 
+        password distribution file"""
+        # if self._sorted_freq_list is None:
+        #     self._sorted_freq_list = np.argsort(self._freq_list)[::-1]
+        freqs = np.array([self.pw2freq(pw) for pw in pws]).reshape(-1, 1)
+        ranks = (np.tile(self._freq_list, freqs.shape) > freqs).sum(axis=1) + 1
+        return ranks
+
     def __iter__(self):
-        for _id in np.argsort(self._freq_list)[::-1]:
+        """Returns the id and frequency of the passwords, you can get
+        the real password by calling self.id2pw on the id"""
+        if self._sorted_freq_list is None:
+            self._sorted_freq_list = np.argsort(self._freq_list)[::-1]
+        for _id in self._sorted_freq_list:
             yield _id, self._freq_list[_id]
 
     def __getitem__(self, k):

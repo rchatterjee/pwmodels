@@ -34,10 +34,20 @@ class TestPasswords(unittest.TestCase):
         pws = Passwords(test_file, sep='\t', freshall=True)
         for pw, f in [('password', 1234), ('123456', 344), (' password', 35)]:
             self.assertEqual(pws.pw2freq(pw), f, "Frequency mismatch for"
-                             "{}, expected {}, got {}"\
+                             "{!r}, expected {}, got {}"\
                              .format(pw, f, pws.pw2freq(pw)))
 
-        
+
+    def test_getranks(self):
+        pwm = Passwords(test_file, sep='\t', freshall=True)
+        pws =  [('password', 1), ('asdfaafdsf', 4)]
+        ranks = pwm.guessranks([w for w,r in pws])
+        print(pws, ranks)
+        for (pw, r), t in zip(pws, ranks):
+            self.assertEqual(r, t, "Frequency mismatch for"
+                             "{!r}, expected {}, got {}"\
+                             .format(pw, r, t))
+
     def test_getallgroups(self):
         for inp, res in [([1, 2, 3],
                           set([(1,), (2,), (3,), (1, 2), (2, 3), (1, 3), (1, 2, 3)]))]:
