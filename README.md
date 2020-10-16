@@ -37,7 +37,7 @@ and the frequency of that password is at the `i`-th location in the array.
 
 ```ipython
 >>> from pwmodel import readpw
->>> pwm = readpw.Passwords(fname, dirname=dirname, limit=int(limit))
+>>> pwm = readpw.Passwords(pass_file=fname,limit=int(limit))
 >>> pwm.pw2id('password12')
 367412281
 >>> pwm.sample_pws(10)
