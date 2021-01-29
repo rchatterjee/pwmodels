@@ -298,7 +298,7 @@ def get_line(file_object, limit=-1, sep=r'\s+', pw_filter=lambda x: True, errors
     for l in file_object:
         if limit > 0 and limit <= i:
             break
-        t = re.split(sep, l.rstrip('\n'), maxsplit=1)
+        t = l.rstrip('\n').split('\t')
         if len(t) != 2: continue
         c, w = t
         c = int(c)
